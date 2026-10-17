@@ -25,6 +25,13 @@ describe('worker validation', () => {
 });
 
 describe('worker routing', () => {
+  it('rejects malformed question counts before touching D1', async () => {
+    for (const count of ['abc', '1.5']) {
+      const response = await app.request(`/api/questions?count=${count}`, {}, {} as Parameters<typeof app.request>[2]);
+      expect(response.status).toBe(400);
+    }
+  });
+
   it('returns a JSON 404 for unknown API routes without invoking assets', async () => {
     let assetRequests = 0;
     const response = await app.request('/api/does-not-exist', {}, {

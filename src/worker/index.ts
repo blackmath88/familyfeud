@@ -25,7 +25,11 @@ app.get('/api/packs', async (context) => {
 
 app.get('/api/questions', async (context) => {
   const packs = (context.req.query('packs') ?? '').split(',').filter(Boolean);
-  const count = Math.max(1, Math.min(10, Number(context.req.query('count') ?? 5)));
+  const requestedCount = Number(context.req.query('count') ?? 5);
+  if (!Number.isFinite(requestedCount) || !Number.isInteger(requestedCount) || requestedCount < 1) {
+    return context.json({ error: 'Die Anzahl muss eine positive ganze Zahl sein.' }, 400);
+  }
+  const count = Math.min(10, requestedCount);
   const excludePlayed = context.req.query('excludePlayed') === '1';
   const where: string[] = ["q.status = 'approved'"];
   const values: unknown[] = [];

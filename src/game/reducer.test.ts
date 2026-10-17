@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parseGameState, serializeGameState } from '../client/state/storage';
 import { toBoardView } from './boardView';
 import { gameReducer, initialGameState } from './reducer';
 import type { GameAction, GameConfig, GameState, Question } from './types';
@@ -70,6 +71,13 @@ describe('game reducer', () => {
     expect(state).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 1 } } });
     state = gameReducer(state, { type: 'ACCEPT', rank: 3 });
     expect(state).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 0, results: [undefined, 3] } } });
+  });
+
+  it('preserves unanswered face-off slots across local persistence', () => {
+    const restored = parseGameState(serializeGameState(run(start(), { type: 'NEXT' })))!;
+    expect(restored.round?.faceOff.results).toEqual([undefined, undefined]);
+    const afterFirstHit = gameReducer(restored, { type: 'ACCEPT', rank: 3 });
+    expect(afterFirstHit).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 1, results: [3, undefined] } } });
   });
 
   it('locks face-off starter selection after a response or pending guess', () => {
