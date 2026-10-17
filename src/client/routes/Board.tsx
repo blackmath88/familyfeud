@@ -2,21 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { BoardStage, type BulbMode } from '../board/BoardStage';
 import { demoFixtures } from '../board/demoFixtures';
 import { playSfx, unlockAudio } from '../audio/sfx';
-import { useGame } from '../state/GameContext';
+import { ACTIVE_GAME_ID_KEY } from '../state/GameContext';
 import { useBoardSync } from '../sync/useBoardSync';
 import type { BoardView } from '../../game/types';
 
 export function Board() {
-  const { state } = useGame();
   const params = new URLSearchParams(location.search);
   const demo = params.get('demo') === '1';
-  const [storedGameId, setStoredGameId] = useState(() => state.gameId);
-  const gameId = params.get('game') || storedGameId || state.gameId;
+  const [storedGameId, setStoredGameId] = useState(() => localStorage.getItem(ACTIVE_GAME_ID_KEY) ?? '');
+  const gameId = params.get('game') || storedGameId;
   const synced = useBoardSync(demo ? '' : gameId);
   const [demoIndex, setDemoIndex] = useState(0);
   const [mode, setMode] = useState<BulbMode>('idle');
   const [showDuplicate, setShowDuplicate] = useState(false);
   const [animateIntro, setAnimateIntro] = useState(false);
+  const [animateRoundEnd, setAnimateRoundEnd] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const lastSeq = useRef<number | null>(null);
   const lastPhase = useRef<string | null>(null);
@@ -24,8 +24,7 @@ export function Board() {
 
   useEffect(() => {
     const followNewGame = (event: StorageEvent) => {
-      if (event.key !== 'fq:active-game' || !event.newValue) return;
-      try { setStoredGameId((JSON.parse(event.newValue) as { gameId?: string }).gameId ?? ''); } catch { /* ignore malformed external state */ }
+      if (event.key === ACTIVE_GAME_ID_KEY) setStoredGameId(event.newValue ?? '');
     };
     window.addEventListener('storage', followNewGame);
     return () => window.removeEventListener('storage', followNewGame);
@@ -47,6 +46,7 @@ export function Board() {
     setMode('idle');
     setShowDuplicate(false);
     setAnimateIntro(false);
+    setAnimateRoundEnd(false);
   }, [gameId]);
 
   useEffect(() => {
@@ -58,6 +58,8 @@ export function Board() {
     } else if (view.phase !== 'roundIntro' || firstSnapshot) {
       setAnimateIntro(false);
     }
+    if (!firstSnapshot && view.phase === 'roundEnd' && lastPhase.current !== 'roundEnd') setAnimateRoundEnd(true);
+    else if (view.phase !== 'roundEnd' || firstSnapshot) setAnimateRoundEnd(false);
     lastPhase.current = view.phase;
     const event = view.lastEvent;
     if (!event || (!demo && firstSnapshot) || (!demo && event.seq <= (lastSeq.current ?? -1))) {
@@ -87,7 +89,7 @@ export function Board() {
 
   if (!view) return <main className="board-wait"><div className="wait-logo">FAMILIEN<br />QUIZ</div><p>Warte auf den Spielleiter …</p><small>Öffne dieses Brett über «Brett öffnen» im Host-Fenster.</small></main>;
   return <>
-    <BoardStage view={view} mode={mode} demo={demo} showDuplicate={showDuplicate} animateIntro={animateIntro} />
+    <BoardStage view={view} mode={mode} demo={demo} showDuplicate={showDuplicate} animateIntro={animateIntro} animateRoundEnd={animateRoundEnd} />
     {demo && <aside className="demo-controls"><button aria-label="Vorheriger Demo-Zustand" onClick={() => setDemoIndex((demoIndex - 1 + demoFixtures.length) % demoFixtures.length)}>←</button><span><b>DEMO {demoIndex + 1}/{demoFixtures.length}</b>{demoFixtures[demoIndex].label}</span><button aria-label="Nächster Demo-Zustand" onClick={() => setDemoIndex((demoIndex + 1) % demoFixtures.length)}>→</button>{!audioReady && <button className="audio-unlock" onClick={enableAudio}>Ton aktivieren</button>}</aside>}
     {!demo && !audioReady && <button className="board-audio-unlock" onClick={enableAudio}>Ton aktivieren</button>}
   </>;

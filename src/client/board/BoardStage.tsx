@@ -4,7 +4,7 @@ import { playSfx } from '../audio/sfx';
 
 export type BulbMode = 'idle' | 'reveal' | 'strike' | 'roundWinA' | 'roundWinB' | 'gameOver';
 
-export function BoardStage({ view, mode, demo = false, showDuplicate = false, animateIntro = false }: { view: BoardView; mode: BulbMode; demo?: boolean; showDuplicate?: boolean; animateIntro?: boolean }) {
+export function BoardStage({ view, mode, demo = false, showDuplicate = false, animateIntro = false, animateRoundEnd = false }: { view: BoardView; mode: BulbMode; demo?: boolean; showDuplicate?: boolean; animateIntro?: boolean; animateRoundEnd?: boolean }) {
   const isTitle = view.phase === 'setup';
   const gameOver = view.phase === 'gameOver';
   const status = statusText(view, showDuplicate);
@@ -28,7 +28,7 @@ export function BoardStage({ view, mode, demo = false, showDuplicate = false, an
           {isTitle ? <TitleWall title={view.title} /> : gameOver ? <GameOver view={view} /> : <>
             <div className="round-bar">RUNDE {view.roundNumber} · ×{view.multiplier}<span>WIR HABEN {view.surveySize} LEUTE GEFRAGT</span></div>
             <TypedQuestion text={view.question ?? ''} animate={animateIntro} />
-            <div className={`answer-grid rows-${view.slots.length}`}>{view.slots.map((slot) => <AnswerRow slot={slot} animate={mode === 'reveal' && view.lastEvent?.type === 'reveal' && view.lastEvent.rank === slot.rank} key={slot.rank} />)}</div>
+            <div className={`answer-grid rows-${view.slots.length}`}>{view.slots.map((slot, index) => <AnswerRow slot={slot} animateReveal={mode === 'reveal' && view.lastEvent?.type === 'reveal' && view.lastEvent.rank === slot.rank} animateEnd={animateRoundEnd && slot.state === 'end'} delay={index * 320} key={slot.rank} />)}</div>
             <div className="screen-status"><span>{status}</span><span>SUMME&nbsp;&nbsp; <AnimatedNumber value={view.pot} from={potFrom} animate={mode === 'reveal'} /></span></div>
             <div className="total-bar"><AnimatedNumber value={view.pot} from={potFrom} animate={mode === 'reveal'} /></div>
             <div className="compact-strip"><span>{'✕'.repeat(view.strikes)}{'·'.repeat(3 - view.strikes)}</span><span>{view.currentPlayer ? `${view.currentPlayer} IST DRAN` : ''}</span><span className={`mic ${view.mic}`}>● MIKRO</span></div>
@@ -48,8 +48,8 @@ function Podium({ view, team }: { view: BoardView; team: 0 | 1 }) {
   return <aside className={`podium podium-${team} ${data.hasControl ? 'control' : ''} ${winner ? 'winner' : ''}`}><span className="team-label">TEAM {team === 0 ? 'A' : 'B'}</span><strong>{data.name}</strong><b>{String(data.score).padStart(3, '0')}</b></aside>;
 }
 
-function AnswerRow({ slot, animate }: { slot: BoardSlot; animate: boolean }) {
-  return <div className={`answer-row ${slot.state} ${animate ? 'animate-reveal' : ''}`}><span>{slot.rank}.</span><strong>{slot.state === 'hidden' ? '' : slot.label}</strong><i aria-hidden="true" /><b>{slot.state === 'hidden' ? '--' : slot.points}</b></div>;
+function AnswerRow({ slot, animateReveal, animateEnd, delay }: { slot: BoardSlot; animateReveal: boolean; animateEnd: boolean; delay: number }) {
+  return <div className={`answer-row ${slot.state} ${animateReveal ? 'animate-reveal' : ''} ${animateEnd ? 'animate-end' : ''}`} style={animateEnd ? { animationDelay: `${delay}ms` } : undefined}><span>{slot.rank}.</span><strong>{slot.state === 'hidden' ? '' : slot.label}</strong><i aria-hidden="true" /><b>{slot.state === 'hidden' ? '--' : slot.points}</b></div>;
 }
 
 function TypedQuestion({ text, animate }: { text: string; animate: boolean }) {

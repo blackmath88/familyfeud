@@ -21,9 +21,20 @@ try {
   if (!stored?.gameId) throw new Error('Spiel-ID fehlt nach dem Setup.');
   const hiddenLabel = stored.round.slots[0].label.toLocaleUpperCase('de-CH');
   const board = await context.newPage();
+  await board.addInitScript(`(() => {
+    const original = Storage.prototype.getItem;
+    const reads = [];
+    Object.defineProperty(window, '__fqStorageReads', { value: reads });
+    Storage.prototype.getItem = function getItem(key) {
+      reads.push(key);
+      return original.call(this, key);
+    };
+  })()`);
   await board.goto(`${baseUrl}/board`);
   await expect(board.locator('.board-stage')).toBeVisible();
   await expect(board.locator('body')).not.toContainText(hiddenLabel);
+  const boardStorageReads = await board.evaluate<string[]>('window.__fqStorageReads');
+  if (boardStorageReads.includes('fq:active-game')) throw new Error('Das Brett hat den autoritativen Spielstand aus dem Speicher geladen.');
   await board.getByRole('button', { name: 'Ton aktivieren' }).click();
   await host.getByRole('button', { name: 'Ton' }).click();
   await expect.poll(() => board.evaluate(() => localStorage.getItem('fq:muted'))).toBe('1');
@@ -38,7 +49,19 @@ try {
     await host.keyboard.press('a');
     await expect(host.getByText('Spiel', { exact: true })).toBeVisible();
     const slotCount = await host.locator('.mini-board li').count();
-    for (let rank = 1; rank <= slotCount; rank += 1) await host.keyboard.press(String(rank));
+    if (round === 1) {
+      await host.keyboard.press('1');
+      await host.keyboard.press('x');
+      await host.keyboard.press('x');
+      await host.keyboard.press('x');
+      await expect(host.getByText('Klauen', { exact: true })).toBeVisible();
+      await host.keyboard.press('x');
+      await expect(board.locator('.answer-row.end')).toHaveCount(slotCount - 1);
+      const endDelays = await board.evaluate<string[]>(`Array.from(document.querySelectorAll('.answer-row.end'), (row) => getComputedStyle(row).animationDelay)`);
+      if (new Set(endDelays).size < 2) throw new Error('Rundenende-Antworten werden nicht nacheinander eingeblendet.');
+    } else {
+      for (let rank = 1; rank <= slotCount; rank += 1) await host.keyboard.press(String(rank));
+    }
     await expect(host.getByText('Rundenende', { exact: true })).toBeVisible();
     await expect(board.locator('.screen-status')).toContainText('GEWINNT');
     await host.keyboard.press('n');
@@ -100,7 +123,7 @@ try {
   await reducedPage.screenshot({ path: resolve(screenshotDir, 'board-reduced-motion-1280x720.png') });
   await reduced.close();
 
-  console.log(`Browser smoke passed: setup, audio activation/mute, 3 keyboard rounds, board sync, hidden-answer safety, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
+  console.log(`Browser smoke passed: setup, audio activation/mute, 3 keyboard rounds, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
 } finally {
   await browser.close();
 }
