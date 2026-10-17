@@ -49,6 +49,27 @@ describe('worker routing', () => {
     expect(assetRequests).toBe(0);
   });
 
+  it('exports a large pack with a constant three-query budget', async () => {
+    let prepareCalls = 0;
+    const rows = Array.from({ length: 60 }, (_, index) => ({
+      id: `q-${index}`, pack_id: 'large', text: `Frage ${index}?`, survey_size: 100,
+      difficulty: 1, status: 'approved',
+    }));
+    const db = {
+      prepare: (sql: string) => {
+        prepareCalls += 1;
+        return { bind: () => ({
+          first: async () => ({ id: 'large', name: 'Gross', source: 'manual' }),
+          all: async () => ({ results: sql.includes('FROM answers') ? [] : rows }),
+        }) };
+      },
+    };
+    const response = await app.request('/api/packs/large/export', {}, { DB: db } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(200);
+    expect(prepareCalls).toBe(3);
+    expect((await response.json() as { questions: unknown[] }).questions).toHaveLength(60);
+  });
+
   it('rejects an unsupported imported pack source before touching D1', async () => {
     const response = await app.request('/api/packs/import', {
       method: 'POST',
@@ -102,6 +123,20 @@ describe('worker routing', () => {
     expect(batchCalls).toBe(1);
     expect(statementCount).toBe(4);
     expect(prepareCalls).toBe(5);
+  });
+
+  it('rejects changing a question to another pack as a controlled conflict', async () => {
+    let batchCalls = 0;
+    const db = {
+      prepare: () => ({ bind: () => ({ first: async () => ({ id: 'question', pack_id: 'original' }) }) }),
+      batch: async () => { batchCalls += 1; },
+    };
+    const response = await app.request('/api/questions/question', {
+      method: 'PUT', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...valid, packId: 'different' }),
+    }, { DB: db } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(409);
+    expect(batchCalls).toBe(0);
   });
 
   it('rejects incomplete or mismatched game configurations before touching D1', async () => {

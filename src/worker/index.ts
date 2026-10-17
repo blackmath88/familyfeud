@@ -65,8 +65,10 @@ app.put('/api/questions/:id', async (context) => {
   if (error) return context.json({ error }, 400);
   const question = input as QuestionInput;
   const id = context.req.param('id');
-  const exists = await context.env.DB.prepare('SELECT id FROM questions WHERE id = ?').bind(id).first();
+  const exists = await context.env.DB.prepare('SELECT id, pack_id FROM questions WHERE id = ?').bind(id)
+    .first<{ id: string; pack_id: string }>();
   if (!exists) return context.json({ error: 'Frage nicht gefunden.' }, 404);
+  if (exists.pack_id !== question.packId) return context.json({ error: 'Eine Fragen-ID kann nicht in ein anderes Paket verschoben werden.' }, 409);
   await context.env.DB.batch(questionStatements(context.env.DB, id, question, true));
   return context.json({ ...question, id });
 });
@@ -212,14 +214,22 @@ interface QuestionRow {
 }
 
 async function hydrateQuestions(db: D1Database, rows: QuestionRow[]): Promise<Question[]> {
-  return Promise.all(rows.map(async (row) => {
-    const answers = await db.prepare('SELECT rank, label, points, aliases FROM answers WHERE question_id = ? ORDER BY rank').bind(row.id)
-      .all<{ rank: number; label: string; points: number; aliases: string }>();
-    return {
-      id: row.id, packId: row.pack_id, text: row.text, surveySize: row.survey_size,
-      difficulty: row.difficulty, status: row.status,
-      answers: answers.results.map((answer) => ({ ...answer, aliases: JSON.parse(answer.aliases) as string[] })),
-    };
+  if (!rows.length) return [];
+  const answers = await db.prepare(`
+    SELECT question_id, rank, label, points, aliases FROM answers
+    WHERE question_id IN (SELECT value FROM json_each(?))
+    ORDER BY question_id, rank
+  `).bind(JSON.stringify(rows.map((row) => row.id)))
+    .all<{ question_id: string; rank: number; label: string; points: number; aliases: string }>();
+  const byQuestion = new Map<string, Question['answers']>();
+  for (const { question_id: questionId, ...answer } of answers.results) {
+    const list = byQuestion.get(questionId) ?? [];
+    list.push({ ...answer, aliases: JSON.parse(answer.aliases) as string[] });
+    byQuestion.set(questionId, list);
+  }
+  return rows.map((row) => ({
+    id: row.id, packId: row.pack_id, text: row.text, surveySize: row.survey_size,
+    difficulty: row.difficulty, status: row.status, answers: byQuestion.get(row.id) ?? [],
   }));
 }
 
