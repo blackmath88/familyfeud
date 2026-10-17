@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "familien-quiz",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-17",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "familien-quiz",
+      "database_id": "local-only",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  // Phase 6 will add the Durable Object binding. No schedules are enabled.
+  "vars": {
+    "MOCK_JUDGE": "0"
+  }
+}
