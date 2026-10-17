@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { toBoardView } from '../../game/boardView';
 import type { GameSnapshot } from '../../game/types';
-import { persistGame } from '../api';
+import { createGame, getQuestions, persistGame } from '../api';
 import { useGame } from '../state/GameContext';
 import { useHostSync } from '../sync/useHostSync';
 
@@ -14,7 +14,7 @@ const phaseNames = {
 export function Host() {
   const { state, dispatch } = useGame();
   const [guess, setGuess] = useState('');
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(() => localStorage.getItem('fq:muted') === '1');
   const [notice, setNotice] = useState('');
   const persistedRef = useRef('');
   const view = useMemo(() => toBoardView(state), [state]);
@@ -41,7 +41,7 @@ export function Host() {
       else if (event.key.toLowerCase() === 'a' && state.phase === 'faceOff') dispatch({ type: 'SET_CONTROL', team: 0 });
       else if (event.key.toLowerCase() === 'b' && state.phase === 'faceOff') dispatch({ type: 'SET_CONTROL', team: 1 });
       else if (event.key.toLowerCase() === 'z') dispatch({ type: 'UNDO' });
-      else if (event.key.toLowerCase() === 'm') setMuted((value) => !value);
+      else if (event.key.toLowerCase() === 'm') toggleMuted();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -57,19 +57,38 @@ export function Host() {
   }
 
   function openBoard() {
-    window.open(`/board?game=${encodeURIComponent(state.gameId)}`, 'familien-quiz-board', 'popup,width=1280,height=720');
+    window.open('/board', 'familien-quiz-board', 'popup,width=1280,height=720');
   }
 
-  function reset() {
-    dispatch({ type: 'START_GAME', gameId: crypto.randomUUID(), config: state.config, queue: state.queue });
+  function toggleMuted() {
+    setMuted((value) => {
+      const next = !value;
+      localStorage.setItem('fq:muted', next ? '1' : '0');
+      return next;
+    });
+  }
+
+  async function reset() {
+    setNotice('Neue Fragen werden vorbereitet …');
+    try {
+      const questions = await getQuestions(state.config.packIds, state.config.rounds, !state.config.allowRepeats);
+      if (questions.length < state.config.rounds) throw new Error(`Nur ${questions.length} neue Fragen verfügbar.`);
+      const game = await createGame(state.config, questions.map((question) => question.id));
+      dispatch({ type: 'START_GAME', gameId: game.id, config: state.config, queue: questions });
+      setNotice('');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Neues Spiel konnte nicht vorbereitet werden.');
+    }
   }
 
   const active = view.activeTeam;
+  const canAnswer = ['faceOff', 'playing', 'steal'].includes(state.phase);
+  const canAdvance = ['roundIntro', 'roundEnd'].includes(state.phase);
   return (
     <main className="host-page">
       <header className="host-header">
         <div><span className="eyebrow">{phaseNames[state.phase]}</span><h1>{state.config.title}</h1><p>Runde {view.roundNumber}/{view.roundsTotal} · ×{view.multiplier}</p></div>
-        <div className="header-actions"><button onClick={() => setMuted((value) => !value)} aria-pressed={muted}>{muted ? '🔇 Stumm' : '🔊 Ton'}</button><button onClick={openBoard}>Brett öffnen</button><button onClick={() => dispatch({ type: 'UNDO' })} disabled={!state.history.length}>↶ Rückgängig</button></div>
+        <div className="header-actions"><button onClick={toggleMuted} aria-pressed={muted}>{muted ? '🔇 Stumm' : '🔊 Ton'}</button><button onClick={openBoard}>Brett öffnen</button><button onClick={() => dispatch({ type: 'UNDO' })} disabled={!state.history.length}>↶ Rückgängig</button></div>
       </header>
       {notice && <p className="notice host-notice">{notice}</p>}
       <div className="host-grid">
@@ -79,9 +98,9 @@ export function Host() {
         </section>
         <section className="host-panel answer-panel">
           <span className="eyebrow">ANTWORT EINGEBEN</span>
-          <form onSubmit={submit}><input autoFocus value={guess} onChange={(event) => setGuess(event.target.value)} placeholder="Antwort tippen …" disabled={['roundIntro', 'roundEnd', 'gameOver'].includes(state.phase)} /><button className="primary">Prüfen ↵</button></form>
+          <form onSubmit={submit}><input autoFocus value={guess} onChange={(event) => setGuess(event.target.value)} placeholder="Antwort tippen …" disabled={!canAnswer} /><button className="primary" disabled={!canAnswer || !guess.trim()}>Prüfen ↵</button></form>
           {state.pending ? <Decision state={state} onAccept={() => state.pending?.match.rank && dispatch({ type: 'ACCEPT', rank: state.pending.match.rank })} onStrike={() => dispatch({ type: 'STRIKE' })} onDiscard={() => dispatch({ type: 'DISCARD' })} /> : <div className="decision quiet"><strong>{state.phase === 'roundIntro' ? 'Bereit für die Runde?' : state.phase === 'roundEnd' ? 'Punkte vergeben!' : state.phase === 'gameOver' ? 'Das war das Familien-Quiz!' : 'Wir hören zu.'}</strong><span>{state.phase === 'faceOff' ? 'Wer ist schneller?' : active !== null ? `${state.config.teams[active].name} ist dran.` : 'Mit N fortfahren.'}</span></div>}
-          <div className="quick-actions"><button onClick={() => dispatch({ type: 'STRIKE' })}>✕ Fehler</button><button onClick={() => dispatch({ type: 'NEXT' })}>Weiter N</button></div>
+          <div className="quick-actions"><button disabled={!canAnswer} onClick={() => dispatch({ type: 'STRIKE' })}>✕ Fehler</button><button disabled={!canAdvance} onClick={() => dispatch({ type: 'NEXT' })}>Weiter N</button></div>
         </section>
         <section className="host-panel teams-panel">
           {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><button onClick={() => dispatch({ type: state.phase === 'faceOff' ? 'SET_CONTROL' : 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></article>)}

@@ -8,7 +8,7 @@ export async function unlockAudio(): Promise<void> {
 }
 
 export function playSfx(name: 'ding' | 'strike' | 'intro' | 'win' | 'crowd' | 'tick'): void {
-  if (!enabled || !context) return;
+  if (!enabled || !context || localStorage.getItem('fq:muted') === '1') return;
   const now = context.currentTime;
   if (name === 'crowd') return crowd(context, now);
   if (name === 'strike') return tone(context, now, 110, 0.6, 'sawtooth', 0.12, 70);

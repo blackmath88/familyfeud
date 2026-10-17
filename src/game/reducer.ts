@@ -128,7 +128,7 @@ function resolveFaceOffHit(state: GameState, team: TeamId, rank: number): GameSt
   const results = [...round.faceOff.results] as RoundState['faceOff']['results'];
   results[team] = rank;
   if (rank === 1) {
-    return { ...state, phase: 'playing', round: { ...round, faceOff: { ...round.faceOff, results }, control: team } };
+    return { ...state, phase: 'playing', faceOffTurn: advanceFaceOffTurns(state), round: { ...round, faceOff: { ...round.faceOff, results }, control: team } };
   }
   const other = otherTeam(team);
   if (results[other] === undefined) {
@@ -136,7 +136,7 @@ function resolveFaceOffHit(state: GameState, team: TeamId, rank: number): GameSt
   }
   const otherRank = results[other];
   const winner = otherRank === null || (typeof otherRank === 'number' && rank < otherRank) ? team : other;
-  return { ...state, phase: 'playing', round: { ...round, faceOff: { results, turn: team }, control: winner } };
+  return { ...state, phase: 'playing', faceOffTurn: advanceFaceOffTurns(state), round: { ...round, faceOff: { results, turn: team }, control: winner } };
 }
 
 function strike(state: GameState): GameState {
@@ -151,7 +151,7 @@ function strike(state: GameState): GameState {
       return { ...state, pending: null, round: { ...round, faceOff: { results, turn: other } } };
     }
     if (typeof results[other] === 'number') {
-      return { ...state, phase: 'playing', pending: null, round: { ...round, faceOff: { results, turn: team }, control: other } };
+      return { ...state, phase: 'playing', pending: null, faceOffTurn: advanceFaceOffTurns(state), round: { ...round, faceOff: { results, turn: team }, control: other } };
     }
     const faceOffTurn: [number, number] = [
       (state.faceOffTurn[0] + 1) % state.config.teams[0].players.length,
@@ -159,7 +159,9 @@ function strike(state: GameState): GameState {
     ];
     return { ...state, pending: null, faceOffTurn, round: { ...round, faceOff: { results: [undefined, undefined], turn: 0 } } };
   }
-  if (state.phase === 'steal') return finishRound({ ...state, pending: null }, round.control ?? otherTeam(team));
+  if (state.phase === 'steal') {
+    return finishRound({ ...state, pending: null, turn: advanceTeamTurn(state.turn, team, state.config.teams[team].players.length) }, round.control ?? otherTeam(team));
+  }
   const count = Math.min(3, round.strikes + 1);
   const next: GameState = {
     ...state,
@@ -237,6 +239,13 @@ function advanceTeamTurn(turn: [number, number], team: TeamId, players: number):
   const next: [number, number] = [...turn];
   next[team] = (next[team] + 1) % Math.max(1, players);
   return next;
+}
+
+function advanceFaceOffTurns(state: GameState): [number, number] {
+  return [
+    (state.faceOffTurn[0] + 1) % Math.max(1, state.config.teams[0].players.length),
+    (state.faceOffTurn[1] + 1) % Math.max(1, state.config.teams[1].players.length),
+  ];
 }
 
 function snapshot(state: GameState): GameSnapshot {

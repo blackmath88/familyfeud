@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Forward newly added Weavr commands
         env:
@@ -24,6 +24,8 @@ jobs:
           WEAVR_CF_ACCESS_CLIENT_ID: ${{ secrets.WEAVR_CF_ACCESS_CLIENT_ID }}
           WEAVR_CF_ACCESS_CLIENT_SECRET: ${{ secrets.WEAVR_CF_ACCESS_CLIENT_SECRET }}
           WEAVR_INGRESS_URL: https://weavr-control.imbodi55.workers.dev/api/github/commands
+          WEAVR_BEFORE_SHA: ${{ github.event.before }}
+          WEAVR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         shell: bash
         run: |
           set -euo pipefail
@@ -37,9 +39,14 @@ jobs:
             exit 1
           fi
 
-          mapfile -t files < <(
-            git diff-tree --no-commit-id --name-only --diff-filter=A -r "$GITHUB_SHA" -- '.weavr/inbox/*.json'
-          )
+          zero_sha="0000000000000000000000000000000000000000"
+          before="$WEAVR_BEFORE_SHA"
+          if [[ -z "$before" || "$before" == "$zero_sha" ]] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$WEAVR_DEFAULT_BRANCH"
+            before="$(git merge-base "$GITHUB_SHA" "origin/$WEAVR_DEFAULT_BRANCH")"
+          fi
+
+          mapfile -t files < <(git diff --name-only --diff-filter=A "$before" "$GITHUB_SHA" -- '.weavr/inbox/*.json')
 
           if [[ "${#files[@]}" -eq 0 ]]; then
             echo "No newly added Weavr command files."

@@ -62,7 +62,18 @@ describe('game reducer', () => {
     let state = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 3 });
     expect(state.round?.faceOff.turn).toBe(1);
     state = gameReducer(state, { type: 'ACCEPT', rank: 2 });
-    expect(state).toMatchObject({ phase: 'playing', round: { control: 1 } });
+    expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 1 } });
+  });
+
+  it('rotates both face-off players after a rank-one win', () => {
+    const state = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 1 });
+    expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 0 } });
+  });
+
+  it('rotates the stealing player after a failed steal', () => {
+    const state = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 },
+      { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' });
+    expect(state).toMatchObject({ phase: 'roundEnd', turn: [1, 1], round: { winner: 0 } });
   });
 
   it('restores the exact prior snapshot with undo', () => {

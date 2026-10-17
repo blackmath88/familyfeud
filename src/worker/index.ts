@@ -154,11 +154,12 @@ export function validateQuestion(input: QuestionInput): string | null {
   let sum = 0;
   for (let index = 0; index < input.answers.length; index += 1) {
     const answer = input.answers[index];
+    if (!answer || typeof answer !== 'object') return 'Alle Antworten müssen gültige Objekte sein.';
     if (answer.rank !== index + 1) return 'Die Ränge müssen lückenlos bei 1 beginnen.';
-    if (!answer.label.trim() || answer.label.length > 18) return 'Antworten müssen 1 bis 18 Zeichen lang sein.';
+    if (typeof answer.label !== 'string' || !answer.label.trim() || answer.label.length > 18) return 'Antworten müssen 1 bis 18 Zeichen lang sein.';
     if (!Number.isInteger(answer.points) || answer.points < 0) return 'Punkte müssen positive ganze Zahlen sein.';
     if (index > 0 && answer.points > input.answers[index - 1].points) return 'Punkte müssen absteigend sortiert sein.';
-    if (!answer.aliases.every((alias) => alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen kleingeschrieben sein.';
+    if (!Array.isArray(answer.aliases) || !answer.aliases.every((alias) => typeof alias === 'string' && alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen eine Liste kleingeschriebener Texte sein.';
     sum += answer.points;
   }
   if (sum > input.surveySize) return 'Die Punktesumme darf die Umfragegrösse nicht überschreiten.';
