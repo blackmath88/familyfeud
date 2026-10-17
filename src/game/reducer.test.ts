@@ -72,6 +72,13 @@ describe('game reducer', () => {
     expect(state).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 0, results: [undefined, 3] } } });
   });
 
+  it('locks face-off starter selection after a response or pending guess', () => {
+    const afterResponse = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 3 });
+    expect(gameReducer(afterResponse, { type: 'SET_FACEOFF_TURN', team: 0 })).toBe(afterResponse);
+    const pending = run(start(), { type: 'NEXT' }, { type: 'GUESS', text: 'Mondrakete' });
+    expect(gameReducer(pending, { type: 'SET_FACEOFF_TURN', team: 1 })).toBe(pending);
+  });
+
   it('rotates both face-off players after a rank-one win', () => {
     const state = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 1 });
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 0 } });

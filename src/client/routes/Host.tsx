@@ -88,6 +88,7 @@ export function Host() {
   const active = view.activeTeam;
   const canAnswer = ['faceOff', 'playing', 'steal'].includes(state.phase);
   const canAdvance = ['roundIntro', 'roundEnd'].includes(state.phase);
+  const canSelectFaceOffStarter = state.phase === 'faceOff' && !state.pending && state.round.faceOff.results.every((result) => result === undefined);
   return (
     <main className="host-page">
       <header className="host-header">
@@ -107,7 +108,7 @@ export function Host() {
           <div className="quick-actions"><button disabled={!canAnswer} onClick={() => dispatch({ type: 'STRIKE' })}>✕ Fehler</button><button disabled={!canAdvance} onClick={() => dispatch({ type: 'NEXT' })}>Weiter N</button></div>
         </section>
         <section className="host-panel teams-panel">
-          {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><div className="faceoff-actions"><button onClick={() => dispatch({ type: 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Beginnt {index === 0 ? 'A' : 'B'}</button><button onClick={() => dispatch({ type: 'SET_CONTROL', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></div></article>)}
+          {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><div className="faceoff-actions"><button onClick={() => dispatch({ type: 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={!canSelectFaceOffStarter}>Beginnt {index === 0 ? 'A' : 'B'}</button><button onClick={() => dispatch({ type: 'SET_CONTROL', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></div></article>)}
           {state.phase === 'gameOver' && <button className="primary reset-button" onClick={reset}>Neues Spiel · gleiche Teams</button>}
           <Link className="text-link" to="/setup">Zur Einrichtung</Link>
         </section>

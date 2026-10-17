@@ -73,7 +73,7 @@ function reduceAction(state: GameState, action: Exclude<GameAction, { type: 'UND
       if (state.phase !== 'faceOff' || !state.round) return state;
       return { ...state, phase: 'playing', pending: null, faceOffTurn: advanceFaceOffTurns(state), round: { ...state.round, control: action.team } };
     case 'SET_FACEOFF_TURN':
-      if (state.phase !== 'faceOff' || !state.round) return state;
+      if (state.phase !== 'faceOff' || !state.round || state.pending || state.round.faceOff.results.some((result) => result !== undefined)) return state;
       return { ...state, round: { ...state.round, faceOff: { ...state.round.faceOff, turn: action.team } } };
   }
 }
