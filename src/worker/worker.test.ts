@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JudgeRequest, QuestionInput } from '../game/types';
 import { judgeGuess } from './judge';
-import { validateQuestion } from './index';
+import { app, validateQuestion } from './index';
 
 const valid: QuestionInput = {
   packId: 'beispiel', text: 'Testfrage?', surveySize: 100, difficulty: 1, status: 'approved',
@@ -20,6 +20,18 @@ describe('worker validation', () => {
     expect(validateQuestion({ ...valid, answers: valid.answers.map((answer, index) => index === 1 ? { ...answer, rank: 4 } : answer) })).toContain('Ränge');
     expect(validateQuestion({ ...valid, answers: valid.answers.map((answer, index) => index === 0 ? { ...answer, aliases: ['Gross'] } : answer) })).toContain('kleingeschrieben');
     expect(validateQuestion({ ...valid, answers: valid.answers.map((answer, index) => index === 0 ? { ...answer, aliases: null } : answer) } as unknown as QuestionInput)).toContain('Aliase');
+  });
+});
+
+describe('worker routing', () => {
+  it('returns a JSON 404 for unknown API routes without invoking assets', async () => {
+    let assetRequests = 0;
+    const response = await app.request('/api/does-not-exist', {}, {
+      ASSETS: { fetch: async () => { assetRequests += 1; return new Response('html'); } },
+    } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: 'Nicht gefunden.' });
+    expect(assetRequests).toBe(0);
   });
 });
 

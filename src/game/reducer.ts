@@ -149,16 +149,22 @@ function strike(state: GameState): GameState {
     results[team] = null;
     const other = otherTeam(team);
     if (results[other] === undefined) {
-      return { ...state, pending: null, round: { ...round, faceOff: { results, turn: other } } };
+      return {
+        ...state,
+        pending: null,
+        turn: advanceTeamTurn(state.turn, team, state.config.teams[team].players.length),
+        round: { ...round, faceOff: { results, turn: other } },
+      };
     }
+    const turn = advanceTeamTurn(state.turn, team, state.config.teams[team].players.length);
     if (typeof results[other] === 'number') {
-      return { ...state, phase: 'playing', pending: null, faceOffTurn: advanceFaceOffTurns(state), round: { ...round, faceOff: { results, turn: team }, control: other } };
+      return { ...state, phase: 'playing', pending: null, turn, faceOffTurn: advanceFaceOffTurns(state), round: { ...round, faceOff: { results, turn: team }, control: other } };
     }
     const faceOffTurn: [number, number] = [
       (state.faceOffTurn[0] + 1) % state.config.teams[0].players.length,
       (state.faceOffTurn[1] + 1) % state.config.teams[1].players.length,
     ];
-    return { ...state, pending: null, faceOffTurn, round: { ...round, faceOff: { results: [undefined, undefined], turn: 0 } } };
+    return { ...state, pending: null, turn, faceOffTurn, round: { ...round, faceOff: { results: [undefined, undefined], turn: 0 } } };
   }
   if (state.phase === 'steal') {
     return finishRound({ ...state, pending: null, turn: advanceTeamTurn(state.turn, team, state.config.teams[team].players.length) }, round.control ?? otherTeam(team));

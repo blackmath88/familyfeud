@@ -75,6 +75,13 @@ describe('game reducer', () => {
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 1 } });
   });
 
+  it('rotates each team turn after a face-off miss', () => {
+    let state = run(start(), { type: 'NEXT' }, { type: 'STRIKE' });
+    expect(state).toMatchObject({ phase: 'faceOff', turn: [1, 0], round: { faceOff: { turn: 1 } } });
+    state = gameReducer(state, { type: 'STRIKE' });
+    expect(state).toMatchObject({ phase: 'faceOff', turn: [1, 1], faceOffTurn: [1, 1] });
+  });
+
   it('rotates the stealing player after a failed steal', () => {
     const state = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 },
       { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' });

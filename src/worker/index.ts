@@ -116,9 +116,12 @@ app.put('/api/games/:id', async (context) => {
 
 app.post('/api/judge', async (context) => context.json(await judgeGuess(await context.req.json(), context.env)));
 
-app.notFound((context) => context.env.ASSETS
-  ? context.env.ASSETS.fetch(context.req.raw)
-  : context.json({ error: 'Nicht gefunden.' }, 404));
+app.notFound((context) => {
+  if (context.req.path.startsWith('/api/')) return context.json({ error: 'Nicht gefunden.' }, 404);
+  return context.env.ASSETS
+    ? context.env.ASSETS.fetch(context.req.raw)
+    : context.json({ error: 'Nicht gefunden.' }, 404);
+});
 app.onError((error, context) => {
   console.error(error);
   return context.json({ error: 'Interner Fehler.' }, 500);

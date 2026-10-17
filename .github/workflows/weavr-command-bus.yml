@@ -4,8 +4,6 @@ on:
   push:
     paths:
       - ".weavr/inbox/*.json"
-  workflow_dispatch:
-
 permissions:
   contents: read
 
