@@ -185,7 +185,8 @@ export function validateQuestion(input: unknown): string | null {
     const points = answer.points;
     if (typeof points !== 'number' || !Number.isInteger(points) || points < 0) return 'Punkte müssen positive ganze Zahlen sein.';
     if (points > previousPoints) return 'Punkte müssen absteigend sortiert sein.';
-    if (!Array.isArray(answer.aliases) || !answer.aliases.every((alias) => typeof alias === 'string' && alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen eine Liste kleingeschriebener Texte sein.';
+    if (!Array.isArray(answer.aliases) || !answer.aliases.every((alias) => typeof alias === 'string' && alias.trim().length > 0
+      && alias === alias.trim() && alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen eine Liste kleingeschriebener Texte sein.';
     previousPoints = points;
     sum += points;
   }

@@ -1,4 +1,5 @@
 import type { GameConfig, Pack, Question } from '../game/types';
+import { serializeJson } from './state/storage';
 
 export async function getPacks(): Promise<Pack[]> {
   return request('/api/packs');
@@ -14,7 +15,7 @@ export async function createGame(config: GameConfig, questionIds: string[]): Pro
 }
 
 export async function persistGame(gameId: string, state: unknown): Promise<void> {
-  await request(`/api/games/${gameId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state }) });
+  await request(`/api/games/${gameId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: serializeJson({ state }) });
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

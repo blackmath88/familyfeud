@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGameState, serializeGameState } from '../client/state/storage';
+import { parseGameState, serializeGameState, serializeJson } from '../client/state/storage';
 import { toBoardView } from './boardView';
 import { gameReducer, initialGameState } from './reducer';
 import type { GameAction, GameConfig, GameState, Question } from './types';
@@ -74,8 +74,12 @@ describe('game reducer', () => {
   });
 
   it('preserves unanswered face-off slots across local persistence', () => {
-    const restored = parseGameState(serializeGameState(run(start(), { type: 'NEXT' })))!;
+    const faceOff = run(start(), { type: 'NEXT' });
+    const restored = parseGameState(serializeGameState(faceOff))!;
     expect(restored.round?.faceOff.results).toEqual([undefined, undefined]);
+    expect(JSON.parse(serializeJson({ state: faceOff })).state.round.faceOff.results).toEqual([
+      { __fqUndefined: true }, { __fqUndefined: true },
+    ]);
     const afterFirstHit = gameReducer(restored, { type: 'ACCEPT', rank: 3 });
     expect(afterFirstHit).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 1, results: [3, undefined] } } });
   });

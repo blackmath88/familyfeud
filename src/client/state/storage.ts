@@ -3,7 +3,11 @@ import type { GameState } from '../../game/types';
 const undefinedMarker = { __fqUndefined: true } as const;
 
 export function serializeGameState(state: GameState): string {
-  return JSON.stringify(state, (_key, value) => value === undefined ? undefinedMarker : value);
+  return serializeJson(state);
+}
+
+export function serializeJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry) => entry === undefined ? undefinedMarker : entry);
 }
 
 export function parseGameState(serialized: string | null): GameState | null {
