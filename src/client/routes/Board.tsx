@@ -42,6 +42,14 @@ export function Board() {
   }, [demo]);
 
   useEffect(() => {
+    lastSeq.current = null;
+    lastPhase.current = null;
+    setMode('idle');
+    setShowDuplicate(false);
+    setAnimateIntro(false);
+  }, [gameId]);
+
+  useEffect(() => {
     if (!view) return;
     const firstSnapshot = lastPhase.current === null;
     if (!firstSnapshot && view.phase === 'roundIntro' && lastPhase.current !== 'roundIntro') {
@@ -55,7 +63,7 @@ export function Board() {
     if (!event || (!demo && firstSnapshot) || (!demo && event.seq <= (lastSeq.current ?? -1))) {
       setMode(view.phase === 'gameOver' ? 'gameOver' : 'idle');
       setShowDuplicate(false);
-      if (event) lastSeq.current = Math.max(lastSeq.current ?? -1, event.seq);
+      lastSeq.current = event?.seq ?? null;
       return;
     }
     lastSeq.current = event.seq;

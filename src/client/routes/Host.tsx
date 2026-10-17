@@ -21,7 +21,10 @@ export function Host() {
   useHostSync(state.gameId, view);
 
   useEffect(() => {
-    if (!state.gameId || !['roundEnd', 'gameOver'].includes(state.phase)) return;
+    if (!state.gameId || !['roundEnd', 'gameOver'].includes(state.phase)) {
+      persistedRef.current = '';
+      return;
+    }
     const signature = `${state.phase}:${state.round?.index}:${state.lastEvent?.seq}`;
     if (persistedRef.current === signature) return;
     persistedRef.current = signature;
@@ -52,6 +55,7 @@ export function Host() {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!guess.trim()) return;
+    event.currentTarget.querySelector('input')?.blur();
     dispatch({ type: 'GUESS', text: guess });
     setGuess('');
   }
@@ -98,7 +102,7 @@ export function Host() {
         </section>
         <section className="host-panel answer-panel">
           <span className="eyebrow">ANTWORT EINGEBEN</span>
-          <form onSubmit={submit}><input autoFocus value={guess} onChange={(event) => setGuess(event.target.value)} placeholder="Antwort tippen …" disabled={!canAnswer} /><button className="primary" disabled={!canAnswer || !guess.trim()}>Prüfen ↵</button></form>
+          <form onSubmit={submit}><input autoFocus value={guess} onChange={(event) => setGuess(event.target.value)} placeholder="Antwort tippen …" disabled={!canAnswer || !!state.pending} /><button className="primary" disabled={!canAnswer || !!state.pending || !guess.trim()}>Prüfen ↵</button></form>
           {state.pending ? <Decision state={state} onAccept={() => state.pending?.match.rank && dispatch({ type: 'ACCEPT', rank: state.pending.match.rank })} onStrike={() => dispatch({ type: 'STRIKE' })} onDiscard={() => dispatch({ type: 'DISCARD' })} /> : <div className="decision quiet"><strong>{state.phase === 'roundIntro' ? 'Bereit für die Runde?' : state.phase === 'roundEnd' ? 'Punkte vergeben!' : state.phase === 'gameOver' ? 'Das war das Familien-Quiz!' : 'Wir hören zu.'}</strong><span>{state.phase === 'faceOff' ? 'Wer ist schneller?' : active !== null ? `${state.config.teams[active].name} ist dran.` : 'Mit N fortfahren.'}</span></div>}
           <div className="quick-actions"><button disabled={!canAnswer} onClick={() => dispatch({ type: 'STRIKE' })}>✕ Fehler</button><button disabled={!canAdvance} onClick={() => dispatch({ type: 'NEXT' })}>Weiter N</button></div>
         </section>

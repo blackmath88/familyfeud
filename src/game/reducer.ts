@@ -31,6 +31,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'UNDO') return undo(state);
   const next = reduceAction(state, action);
   if (next === state) return state;
+  if (action.type === 'START_GAME') return next;
   if (action.type === 'JUDGE_RESULT' || action.type === 'DISCARD') return next;
   return { ...next, history: [...state.history, snapshot(state)].slice(-50) };
 }
@@ -63,7 +64,7 @@ function reduceAction(state: GameState, action: Exclude<GameAction, { type: 'UND
       return state.pending ? { ...state, pending: null } : state;
     case 'SET_CONTROL':
       if (state.phase !== 'faceOff' || !state.round) return state;
-      return { ...state, phase: 'playing', pending: null, round: { ...state.round, control: action.team } };
+      return { ...state, phase: 'playing', pending: null, faceOffTurn: advanceFaceOffTurns(state), round: { ...state.round, control: action.team } };
     case 'SET_FACEOFF_TURN':
       if (state.phase !== 'faceOff' || !state.round) return state;
       return { ...state, round: { ...state.round, faceOff: { ...state.round.faceOff, turn: action.team } } };

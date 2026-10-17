@@ -52,6 +52,26 @@ try {
   await expect(host.getByText('Runde 1/3')).toBeVisible();
   await expect.poll(() => host.evaluate(() => JSON.parse(localStorage.getItem('fq:active-game') ?? '{}').gameId)).not.toBe(finishedGameId);
   await expect(board.locator('.round-bar')).toContainText('RUNDE 1');
+  await expect(host.getByRole('button', { name: 'Rückgängig' })).toBeDisabled();
+
+  const replacement = await host.evaluate(() => JSON.parse(localStorage.getItem('fq:active-game') ?? 'null') as { round: { slots: { label: string }[] } });
+  const replacementAnswer = replacement.round.slots[0].label;
+  await host.locator('.host-header h1').click();
+  await host.keyboard.press('n');
+  await expect(board.locator('.board-stage')).toHaveAttribute('data-phase', 'faceOff');
+  await host.keyboard.press('a');
+  await expect(board.locator('.board-stage')).toHaveAttribute('data-phase', 'playing');
+  await host.keyboard.press('1');
+  await expect(board.locator('.board-stage')).toHaveClass(/mode-reveal/);
+  await host.keyboard.press('z');
+  await expect(board.locator('.answer-row').first().locator('b')).toHaveText('--');
+  await host.keyboard.press('1');
+  await expect(board.locator('.board-stage')).toHaveClass(/mode-reveal/);
+  await host.getByPlaceholder('Antwort tippen …').fill(replacementAnswer);
+  await host.keyboard.press('Enter');
+  await expect(board.locator('.screen-status')).toContainText('SCHON GENANNT');
+  await host.keyboard.press('r');
+  await expect(board.locator('.screen-status')).not.toContainText('SCHON GENANNT');
 
   const demo = await context.newPage();
   await demo.goto(`${baseUrl}/board?demo=1`);
@@ -80,7 +100,7 @@ try {
   await reducedPage.screenshot({ path: resolve(screenshotDir, 'board-reduced-motion-1280x720.png') });
   await reduced.close();
 
-  console.log(`Browser smoke passed: setup, audio activation/mute, 3 keyboard rounds, board sync, hidden-answer safety, persisted reset, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
+  console.log(`Browser smoke passed: setup, audio activation/mute, 3 keyboard rounds, board sync, hidden-answer safety, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
 } finally {
   await browser.close();
 }

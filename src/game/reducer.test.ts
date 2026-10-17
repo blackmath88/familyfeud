@@ -70,6 +70,11 @@ describe('game reducer', () => {
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 0 } });
   });
 
+  it('rotates face-off players when the host assigns control', () => {
+    const state = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 1 });
+    expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 1 } });
+  });
+
   it('rotates the stealing player after a failed steal', () => {
     const state = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 },
       { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' }, { type: 'STRIKE' });
@@ -83,6 +88,16 @@ describe('game reducer', () => {
     const { history: _beforeHistory, ...beforeSnapshot } = before;
     const { history: _undoneHistory, ...undoneSnapshot } = undone;
     expect(undoneSnapshot).toEqual(beforeSnapshot);
+  });
+
+  it('starts a replacement game with an empty undo history', () => {
+    const completedAction = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 });
+    expect(completedAction.history.length).toBeGreaterThan(0);
+    const replacement = gameReducer(completedAction, {
+      type: 'START_GAME', gameId: 'g2', config, queue: [question('4'), question('5'), question('6')],
+    });
+    expect(replacement).toMatchObject({ gameId: 'g2', phase: 'roundIntro', history: [] });
+    expect(gameReducer(replacement, { type: 'UNDO' })).toBe(replacement);
   });
 
   it('never serializes hidden answer labels or points', () => {

@@ -7,7 +7,7 @@ export type BulbMode = 'idle' | 'reveal' | 'strike' | 'roundWinA' | 'roundWinB' 
 export function BoardStage({ view, mode, demo = false, showDuplicate = false, animateIntro = false }: { view: BoardView; mode: BulbMode; demo?: boolean; showDuplicate?: boolean; animateIntro?: boolean }) {
   const isTitle = view.phase === 'setup';
   const gameOver = view.phase === 'gameOver';
-  const status = statusText(view);
+  const status = statusText(view, showDuplicate);
   const revealRank = view.lastEvent?.type === 'reveal' ? view.lastEvent.rank : null;
   const revealedPoints = mode === 'reveal' && revealRank !== null
     ? view.slots.find((slot) => slot.rank === revealRank)?.points ?? 0
@@ -96,8 +96,8 @@ function GameOver({ view }: { view: BoardView }) {
   return <div className="game-over"><span>ENDSTAND</span><strong>{message}</strong><div><b>{view.teams[0].score}</b><i>:</i><b>{view.teams[1].score}</b></div><em>{view.title}</em></div>;
 }
 
-function statusText(view: BoardView): string {
-  if (view.lastEvent?.type === 'duplicate') return 'SCHON GENANNT';
+function statusText(view: BoardView, showDuplicate: boolean): string {
+  if (showDuplicate) return 'SCHON GENANNT';
   if (view.phase === 'steal') return `KLAUEN! ${view.activeTeam === null ? '' : view.teams[view.activeTeam].name}`;
   if (view.phase === 'faceOff') return 'WER IST SCHNELLER?';
   if (view.phase === 'roundEnd') return view.winner === null ? 'RUNDE BEENDET' : `${view.teams[view.winner].name} GEWINNT`;
