@@ -69,7 +69,7 @@ describe('worker routing', () => {
     const db = {
       prepare: () => ({
         bind: () => ({
-          first: async () => ({ id: 'shared', pack_id: 'other-pack' }),
+          all: async () => ({ results: [{ id: 'shared', pack_id: 'other-pack' }] }),
           run: async () => { mutations += 1; },
         }),
       }),
@@ -86,8 +86,12 @@ describe('worker routing', () => {
   it('writes a complete pack import in one atomic batch', async () => {
     let batchCalls = 0;
     let statementCount = 0;
+    let prepareCalls = 0;
     const db = {
-      prepare: () => ({ bind: () => ({ first: async () => null }) }),
+      prepare: () => {
+        prepareCalls += 1;
+        return { bind: () => ({ all: async () => ({ results: [] }) }) };
+      },
       batch: async (statements: unknown[]) => { batchCalls += 1; statementCount = statements.length; },
     };
     const response = await app.request('/api/packs/import', {
@@ -96,7 +100,8 @@ describe('worker routing', () => {
     }, { DB: db } as unknown as Parameters<typeof app.request>[2]);
     expect(response.status).toBe(200);
     expect(batchCalls).toBe(1);
-    expect(statementCount).toBe(6);
+    expect(statementCount).toBe(4);
+    expect(prepareCalls).toBe(5);
   });
 
   it('rejects incomplete or mismatched game configurations before touching D1', async () => {

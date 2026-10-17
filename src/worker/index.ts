@@ -91,29 +91,54 @@ app.post('/api/packs/import', async (context) => {
   }
   const file = input as unknown as PackFile;
   const seenQuestionIds = new Set<string>();
-  const existingQuestionIds = new Set<string>();
   for (const question of file.questions) {
     const error = validateQuestion({ ...question, packId: file.pack.id });
     if (error) return context.json({ error }, 400);
     if (!question.id) continue;
     if (seenQuestionIds.has(question.id)) return context.json({ error: 'Doppelte Fragen-ID im Paket.' }, 400);
     seenQuestionIds.add(question.id);
-    const existing = await context.env.DB.prepare('SELECT id, pack_id FROM questions WHERE id = ?').bind(question.id)
-      .first<{ id: string; pack_id: string }>();
-    if (existing?.pack_id && existing.pack_id !== file.pack.id) {
-      return context.json({ error: 'Die Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
-    }
-    if (existing) existingQuestionIds.add(question.id);
+  }
+  const questions = file.questions.map((question) => ({ ...question, id: question.id || nanoid(), packId: file.pack.id }));
+  const payload = JSON.stringify(questions);
+  const existing = await context.env.DB.prepare(`
+    SELECT id, pack_id FROM questions
+    WHERE id IN (SELECT json_extract(value, '$.id') FROM json_each(?))
+  `).bind(payload).all<{ id: string; pack_id: string }>();
+  if (existing.results.some((question) => question.pack_id !== file.pack.id)) {
+    return context.json({ error: 'Mindestens eine Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
   }
   const statements: D1PreparedStatement[] = [
     context.env.DB.prepare('INSERT INTO packs (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, source = excluded.source')
       .bind(file.pack.id, file.pack.name, file.pack.source),
+    context.env.DB.prepare(`
+      INSERT INTO questions (id, pack_id, text, survey_size, difficulty, status)
+      SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.text'),
+        json_extract(value, '$.surveySize'), json_extract(value, '$.difficulty'), json_extract(value, '$.status')
+      FROM json_each(?) WHERE true
+      ON CONFLICT(id) DO UPDATE SET pack_id = excluded.pack_id, text = excluded.text,
+        survey_size = excluded.survey_size, difficulty = excluded.difficulty,
+        status = excluded.status, updated_at = datetime('now')
+    `).bind(file.pack.id, payload),
+    context.env.DB.prepare(`
+      DELETE FROM answers
+      WHERE question_id IN (SELECT json_extract(value, '$.id') FROM json_each(?))
+    `).bind(payload),
+    context.env.DB.prepare(`
+      INSERT INTO answers (question_id, rank, label, points, aliases)
+      SELECT json_extract(question.value, '$.id'), json_extract(answer.value, '$.rank'),
+        json_extract(answer.value, '$.label'), json_extract(answer.value, '$.points'),
+        json_extract(answer.value, '$.aliases')
+      FROM json_each(?) AS question, json_each(question.value, '$.answers') AS answer
+    `).bind(payload),
   ];
-  for (const question of file.questions) {
-    const id = question.id || nanoid();
-    statements.push(...questionStatements(context.env.DB, id, { ...question, packId: file.pack.id }, existingQuestionIds.has(id)));
+  try {
+    await context.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes('question_pack_collision')) {
+      return context.json({ error: 'Mindestens eine Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
+    }
+    throw error;
   }
-  await context.env.DB.batch(statements);
   return context.json({ ok: true, count: file.questions.length });
 });
 
