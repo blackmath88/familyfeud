@@ -34,8 +34,9 @@ try {
       return original.call(this, key);
     };
   })()`);
-  await board.goto(`${baseUrl}/board`);
+  await board.goto(`${baseUrl}/board?intro=1`);
   await expect(board.locator('.board-stage')).toBeVisible();
+  await expect.poll(() => board.evaluate(() => location.search)).toBe('');
   await expect(board.locator('body')).not.toContainText(hiddenLabel);
   const boardStorageReads = await board.evaluate<string[]>('window.__fqStorageReads');
   if (boardStorageReads.includes('fq:active-game')) throw new Error('Das Brett hat den autoritativen Spielstand aus dem Speicher geladen.');
@@ -134,7 +135,7 @@ try {
   await reducedPage.screenshot({ path: resolve(screenshotDir, 'board-reduced-motion-1280x720.png') });
   await reduced.close();
 
-  console.log(`Browser smoke passed: setup validation, audio activation/mute, team-B-first face-off, 3 keyboard rounds, final-answer reveal feedback, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
+  console.log(`Browser smoke passed: setup validation, initial intro handoff, audio activation/mute, team-B-first face-off, 3 keyboard rounds, final-answer reveal feedback, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
 } finally {
   await browser.close();
 }

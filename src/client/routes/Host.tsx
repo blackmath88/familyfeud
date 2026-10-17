@@ -16,6 +16,8 @@ export function Host() {
   const [guess, setGuess] = useState('');
   const [muted, setMuted] = useState(() => localStorage.getItem('fq:muted') === '1');
   const [notice, setNotice] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const resettingRef = useRef(false);
   const persistedRef = useRef('');
   const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
   const view = useMemo(() => toBoardView(state), [state]);
@@ -37,6 +39,7 @@ export function Host() {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
       if (typing && !['Escape'].includes(event.key)) return;
       if (/^[1-8]$/.test(event.key)) dispatch({ type: 'ACCEPT', rank: Number(event.key) });
@@ -64,7 +67,7 @@ export function Host() {
   }
 
   function openBoard() {
-    window.open('/board', 'familien-quiz-board', 'popup,width=1280,height=720');
+    window.open('/board?intro=1', 'familien-quiz-board', 'popup,width=1280,height=720');
   }
 
   function toggleMuted() {
@@ -76,6 +79,9 @@ export function Host() {
   }
 
   async function reset() {
+    if (resettingRef.current) return;
+    resettingRef.current = true;
+    setResetting(true);
     setNotice('Neue Fragen werden vorbereitet …');
     try {
       const questions = await getQuestions(state.config.packIds, state.config.rounds, !state.config.allowRepeats);
@@ -85,6 +91,9 @@ export function Host() {
       setNotice('');
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'Neues Spiel konnte nicht vorbereitet werden.');
+    } finally {
+      resettingRef.current = false;
+      setResetting(false);
     }
   }
 
@@ -112,7 +121,7 @@ export function Host() {
         </section>
         <section className="host-panel teams-panel">
           {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><div className="faceoff-actions"><button onClick={() => dispatch({ type: 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={!canSelectFaceOffStarter}>Beginnt {index === 0 ? 'A' : 'B'}</button><button onClick={() => dispatch({ type: 'SET_CONTROL', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></div></article>)}
-          {state.phase === 'gameOver' && <button className="primary reset-button" onClick={reset}>Neues Spiel · gleiche Teams</button>}
+          {state.phase === 'gameOver' && <button className="primary reset-button" onClick={reset} disabled={resetting}>{resetting ? 'Neue Fragen werden vorbereitet …' : 'Neues Spiel · gleiche Teams'}</button>}
           <Link className="text-link" to="/setup">Zur Einrichtung</Link>
         </section>
       </div>

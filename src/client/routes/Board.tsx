@@ -9,6 +9,7 @@ import type { BoardView } from '../../game/types';
 export function Board() {
   const params = new URLSearchParams(location.search);
   const demo = params.get('demo') === '1';
+  const animateFirstIntro = useRef(params.get('intro') === '1');
   const [storedGameId, setStoredGameId] = useState(() => localStorage.getItem(ACTIVE_GAME_ID_KEY) ?? '');
   const gameId = params.get('game') || storedGameId;
   const synced = useBoardSync(demo ? '' : gameId);
@@ -26,11 +27,14 @@ export function Board() {
 
   useEffect(() => {
     const followNewGame = (event: StorageEvent) => {
-      if (event.key === ACTIVE_GAME_ID_KEY) setStoredGameId(event.newValue ?? '');
+      if (event.key === ACTIVE_GAME_ID_KEY) {
+        if (event.newValue && event.newValue !== storedGameId) animateFirstIntro.current = true;
+        setStoredGameId(event.newValue ?? '');
+      }
     };
     window.addEventListener('storage', followNewGame);
     return () => window.removeEventListener('storage', followNewGame);
-  }, []);
+  }, [storedGameId]);
 
   useEffect(() => {
     if (!demo) return;
@@ -58,11 +62,18 @@ export function Board() {
     const priorView = previousView.current;
     previousView.current = view;
     const firstSnapshot = lastPhase.current === null;
-    if (!firstSnapshot && view.phase === 'roundIntro' && lastPhase.current !== 'roundIntro') {
+    if (view.phase === 'roundIntro' && ((!firstSnapshot && lastPhase.current !== 'roundIntro') || (firstSnapshot && animateFirstIntro.current))) {
       setAnimateIntro(true);
       playSfx('intro');
     } else if (view.phase !== 'roundIntro' || firstSnapshot) {
       setAnimateIntro(false);
+    }
+    if (firstSnapshot) {
+      animateFirstIntro.current = false;
+      if (params.get('intro') === '1') {
+        params.delete('intro');
+        history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+      }
     }
     if (!firstSnapshot && view.phase === 'roundEnd' && lastPhase.current !== 'roundEnd') setAnimateRoundEnd(true);
     else if (view.phase !== 'roundEnd' || firstSnapshot) setAnimateRoundEnd(false);
