@@ -73,6 +73,23 @@ describe('worker routing', () => {
     }
   });
 
+  it('rejects game questions that are not approved members of a selected pack', async () => {
+    let batchCalls = 0;
+    const db = {
+      prepare: () => ({
+        bind: () => ({ all: async () => ({ results: [{ id: '1' }, { id: '2' }] }) }),
+      }),
+      batch: async () => { batchCalls += 1; },
+    };
+    const response = await app.request('/api/games', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ config: validGame, questionIds: ['1', '2', 'draft-or-wrong-pack'] }),
+    }, { DB: db } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'Mindestens eine Frage ist nicht spielbar.' });
+    expect(batchCalls).toBe(0);
+  });
+
   it.each(['/api/questions', '/api/packs/import', '/api/games'])('rejects a null body on %s without touching D1', async (path) => {
     const response = await app.request(path, {
       method: 'POST',

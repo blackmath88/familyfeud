@@ -111,6 +111,15 @@ app.post('/api/games', async (context) => {
     return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
   }
   const body = input as unknown as { config: GameConfig; questionIds: string[] };
+  const eligibleQuestions = await context.env.DB.prepare(`
+    SELECT id FROM questions
+    WHERE status = 'approved'
+      AND pack_id IN (${body.config.packIds.map(() => '?').join(',')})
+      AND id IN (${body.questionIds.map(() => '?').join(',')})
+  `).bind(...body.config.packIds, ...body.questionIds).all<{ id: string }>();
+  if (eligibleQuestions.results.length !== body.questionIds.length) {
+    return context.json({ error: 'Mindestens eine Frage ist nicht spielbar.' }, 400);
+  }
   const id = nanoid();
   const statements = [
     context.env.DB.prepare('INSERT INTO games (id, config) VALUES (?, ?)').bind(id, JSON.stringify(body.config)),
