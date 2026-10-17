@@ -1,0 +1,56 @@
+{
+  "schema": "weavr.github-command/v0",
+  "id": "2026-10-17-submit-familyfeud-visual-v2-plan-v2",
+  "kind": "submit_plan",
+  "payload": {
+    "missionId": "familyfeud-visual-v2-phases-0-2",
+    "plan": {
+      "schema": "weavr.plan-evidence/v0",
+      "id": "plan:familyfeud-visual-v2-phases-0-2:v1",
+      "missionId": "familyfeud-visual-v2-phases-0-2",
+      "authorProviderId": "chatgpt",
+      "summary": "Build the accepted phases 0–2 experience in one bounded implementation lane, preserving the existing domain types and references, then verify logic, production build, and browser behavior before committing without merge or deployment.",
+      "steps": [
+        {
+          "id": "1",
+          "title": "Establish the prescribed application shell and deterministic game core",
+          "changes": [
+            "Use the accepted React, TypeScript, and Vite stack from the build handoff.",
+            "Implement reducer/state-machine behavior around the preserved game types and seed rounds.",
+            "Add focused automated coverage for scoring, strikes, reveals, round progression, and reset."
+          ]
+        },
+        {
+          "id": "2",
+          "title": "Implement the game-board and host interactions",
+          "changes": [
+            "Build the title wall, set framing, answer board, score displays, strikes, round controls, and keyboard controls.",
+            "Keep host controls clear while preserving the intended game-show presentation."
+          ]
+        },
+        {
+          "id": "3",
+          "title": "Match the visual references responsively",
+          "changes": [
+            "Implement the accepted typography, color, lighting, dimensional framing, and motion cues.",
+            "Check representative desktop and mobile viewports without altering reference assets."
+          ]
+        },
+        {
+          "id": "4",
+          "title": "Verify and commit the bounded result",
+          "changes": [
+            "Run lint, typecheck, automated tests, and production build.",
+            "Run a browser-driven complete-round smoke test and responsive inspection.",
+            "Commit only in-scope implementation files; do not merge or deploy."
+          ]
+        }
+      ],
+      "newDependencies": [],
+      "architectureChanges": [],
+      "unresolvedQuestions": [],
+      "risks": ["ui"],
+      "confidence": 0.91
+    }
+  }
+}
