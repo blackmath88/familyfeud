@@ -24,3 +24,5 @@ Short log. Newest at the bottom. Format: decision — why.
     German dataset exists; US rankings partly don't fit, the family survey is the more fun source anyway.
 13. **Exactly 2 teams in v1**, each 1–6 players.
 14. **UI German (Swiss spelling, "ss"), code/docs English.**
+
+15. **Visual direction v2: CRT centre, playful studio surround** — preserve the original amber/VT323/dotted-line screen and lime total; add a gold bulb marquee, blue/violet set, warm/cool lights, reflective floor, team podiums and face-off pillars. Use the US set reference for atmosphere, never its logo or oval silhouette. The redirect affects Lane B and VISUAL_SPEC only; the shared types and host visual design are unchanged. All effects must support reduced motion. This user-selected direction supersedes the grey outer frame / black stage, not the CRT.
