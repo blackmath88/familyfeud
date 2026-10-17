@@ -8,7 +8,9 @@ export function BoardStage({ view, mode, demo = false, showDuplicate = false, an
   const isTitle = view.phase === 'setup';
   const gameOver = view.phase === 'gameOver';
   const status = statusText(view, showDuplicate);
-  const revealRank = view.lastEvent?.type === 'reveal' ? view.lastEvent.rank : null;
+  const revealRank = view.lastEvent?.type === 'reveal'
+    ? view.lastEvent.rank
+    : view.lastEvent?.type === 'roundWin' ? view.lastEvent.revealRank ?? null : null;
   const revealedPoints = mode === 'reveal' && revealRank !== null
     ? view.slots.find((slot) => slot.rank === revealRank)?.points ?? 0
     : 0;
@@ -28,7 +30,7 @@ export function BoardStage({ view, mode, demo = false, showDuplicate = false, an
           {isTitle ? <TitleWall title={view.title} /> : gameOver ? <GameOver view={view} /> : <>
             <div className="round-bar">RUNDE {view.roundNumber} · ×{view.multiplier}<span>WIR HABEN {view.surveySize} LEUTE GEFRAGT</span></div>
             <TypedQuestion text={view.question ?? ''} animate={animateIntro} />
-            <div className={`answer-grid rows-${view.slots.length}`}>{view.slots.map((slot, index) => <AnswerRow slot={slot} animateReveal={mode === 'reveal' && view.lastEvent?.type === 'reveal' && view.lastEvent.rank === slot.rank} animateEnd={animateRoundEnd && slot.state === 'end'} delay={index * 320} key={slot.rank} />)}</div>
+            <div className={`answer-grid rows-${view.slots.length}`}>{view.slots.map((slot, index) => <AnswerRow slot={slot} animateReveal={mode === 'reveal' && revealRank === slot.rank} animateEnd={animateRoundEnd && slot.state === 'end'} delay={index * 320} key={slot.rank} />)}</div>
             <div className="screen-status"><span>{status}</span><span>SUMME&nbsp;&nbsp; <AnimatedNumber value={view.pot} from={potFrom} animate={mode === 'reveal'} /></span></div>
             <div className="total-bar"><AnimatedNumber value={view.pot} from={potFrom} animate={mode === 'reveal'} /></div>
             <div className="compact-strip"><span>{'✕'.repeat(view.strikes)}{'·'.repeat(3 - view.strikes)}</span><span>{view.currentPlayer ? `${view.currentPlayer} IST DRAN` : ''}</span><span className={`mic ${view.mic}`}>● MIKRO</span></div>

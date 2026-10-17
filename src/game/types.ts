@@ -143,7 +143,7 @@ export type BoardEvent =
   | { seq: number; type: 'strike'; count: number }
   | { seq: number; type: 'duplicate' }
   | { seq: number; type: 'steal'; team: TeamId }
-  | { seq: number; type: 'roundWin'; team: TeamId; points: number }
+  | { seq: number; type: 'roundWin'; team: TeamId; points: number; revealRank?: number }
   | { seq: number; type: 'gameOver'; winner: TeamId | null };
 
 export interface GameSnapshot {

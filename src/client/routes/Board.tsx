@@ -72,7 +72,22 @@ export function Board() {
     setShowDuplicate(event.type === 'duplicate');
     if (event.type === 'reveal') { setMode('reveal'); playSfx('ding'); }
     else if (event.type === 'strike') { setMode('strike'); playSfx('strike'); }
-    else if (event.type === 'roundWin') { setMode(event.team === 0 ? 'roundWinA' : 'roundWinB'); playSfx('win'); playSfx('crowd'); }
+    else if (event.type === 'roundWin') {
+      const winnerMode = event.team === 0 ? 'roundWinA' : 'roundWinB';
+      if (event.revealRank !== undefined) {
+        setMode('reveal');
+        playSfx('ding');
+        const timer = window.setTimeout(() => {
+          setMode(winnerMode);
+          playSfx('win');
+          playSfx('crowd');
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+      setMode(winnerMode);
+      playSfx('win');
+      playSfx('crowd');
+    }
     else if (event.type === 'gameOver') { setMode('gameOver'); playSfx('win'); }
     else setMode('idle');
     if (event.type === 'reveal' || event.type === 'strike') {

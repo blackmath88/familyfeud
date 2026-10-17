@@ -65,6 +65,19 @@ describe('game reducer', () => {
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 1 } });
   });
 
+  it('lets the host select team B as the first face-off responder', () => {
+    let state = run(start(), { type: 'NEXT' }, { type: 'SET_FACEOFF_TURN', team: 1 });
+    expect(state).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 1 } } });
+    state = gameReducer(state, { type: 'ACCEPT', rank: 3 });
+    expect(state).toMatchObject({ phase: 'faceOff', round: { faceOff: { turn: 0, results: [undefined, 3] } } });
+  });
+
+  it('preserves the final answer rank in the round-win event', () => {
+    const state = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 },
+      { type: 'ACCEPT', rank: 1 }, { type: 'ACCEPT', rank: 2 }, { type: 'ACCEPT', rank: 3 }, { type: 'ACCEPT', rank: 4 });
+    expect(state.lastEvent).toMatchObject({ type: 'roundWin', team: 0, revealRank: 4 });
+  });
+
   it('rotates both face-off players after a rank-one win', () => {
     const state = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 1 });
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 0 } });

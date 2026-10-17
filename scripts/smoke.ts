@@ -46,7 +46,12 @@ try {
     await host.locator('.host-header h1').click();
     await host.keyboard.press('n');
     await expect(host.getByText('Duell', { exact: true })).toBeVisible();
-    await host.keyboard.press('a');
+    await host.keyboard.press(round === 1 ? 'b' : 'a');
+    if (round === 1) {
+      await expect(host.locator('.host-team.team-1')).toHaveClass(/active/);
+      await host.screenshot({ path: resolve(screenshotDir, 'host-faceoff-1280x720.png') });
+    }
+    await host.getByRole('button', { name: 'Kontrolle A' }).click();
     await expect(host.getByText('Spiel', { exact: true })).toBeVisible();
     const slotCount = await host.locator('.mini-board li').count();
     if (round === 1) {
@@ -61,6 +66,7 @@ try {
       if (new Set(endDelays).size < 2) throw new Error('Rundenende-Antworten werden nicht nacheinander eingeblendet.');
     } else {
       for (let rank = 1; rank <= slotCount; rank += 1) await host.keyboard.press(String(rank));
+      await expect(board.locator('.board-stage')).toHaveClass(/mode-reveal/);
     }
     await expect(host.getByText('Rundenende', { exact: true })).toBeVisible();
     await expect(board.locator('.screen-status')).toContainText('GEWINNT');
@@ -83,6 +89,7 @@ try {
   await host.keyboard.press('n');
   await expect(board.locator('.board-stage')).toHaveAttribute('data-phase', 'faceOff');
   await host.keyboard.press('a');
+  await host.getByRole('button', { name: 'Kontrolle A' }).click();
   await expect(board.locator('.board-stage')).toHaveAttribute('data-phase', 'playing');
   await host.keyboard.press('1');
   await expect(board.locator('.board-stage')).toHaveClass(/mode-reveal/);
@@ -123,7 +130,7 @@ try {
   await reducedPage.screenshot({ path: resolve(screenshotDir, 'board-reduced-motion-1280x720.png') });
   await reduced.close();
 
-  console.log(`Browser smoke passed: setup, audio activation/mute, 3 keyboard rounds, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
+  console.log(`Browser smoke passed: setup, audio activation/mute, team-B-first face-off, 3 keyboard rounds, final-answer reveal feedback, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
 } finally {
   await browser.close();
 }

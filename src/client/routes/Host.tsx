@@ -41,8 +41,8 @@ export function Host() {
       else if (event.key.toLowerCase() === 'j' && state.pending?.match.rank) dispatch({ type: 'ACCEPT', rank: state.pending.match.rank });
       else if (event.key.toLowerCase() === 'n') dispatch(state.pending ? { type: 'DISCARD' } : { type: 'NEXT' });
       else if (event.key.toLowerCase() === 'r' || event.key === 'Escape') dispatch({ type: 'DISCARD' });
-      else if (event.key.toLowerCase() === 'a' && state.phase === 'faceOff') dispatch({ type: 'SET_CONTROL', team: 0 });
-      else if (event.key.toLowerCase() === 'b' && state.phase === 'faceOff') dispatch({ type: 'SET_CONTROL', team: 1 });
+      else if (event.key.toLowerCase() === 'a' && state.phase === 'faceOff') dispatch({ type: 'SET_FACEOFF_TURN', team: 0 });
+      else if (event.key.toLowerCase() === 'b' && state.phase === 'faceOff') dispatch({ type: 'SET_FACEOFF_TURN', team: 1 });
       else if (event.key.toLowerCase() === 'z') dispatch({ type: 'UNDO' });
       else if (event.key.toLowerCase() === 'm') toggleMuted();
     };
@@ -107,12 +107,12 @@ export function Host() {
           <div className="quick-actions"><button disabled={!canAnswer} onClick={() => dispatch({ type: 'STRIKE' })}>✕ Fehler</button><button disabled={!canAdvance} onClick={() => dispatch({ type: 'NEXT' })}>Weiter N</button></div>
         </section>
         <section className="host-panel teams-panel">
-          {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><button onClick={() => dispatch({ type: state.phase === 'faceOff' ? 'SET_CONTROL' : 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></article>)}
+          {state.config.teams.map((team, index) => <article className={`host-team team-${index} ${view.activeTeam === index ? 'active' : ''}`} key={team.name}><div><span>TEAM {index === 0 ? 'A' : 'B'}</span><strong>{team.name}</strong></div><b>{state.scores[index]}</b><p>{team.players.map((player, playerIndex) => <span className={view.currentPlayer === player ? 'current' : ''} key={`${player}-${playerIndex}`}>{player}</span>)}</p><div className="faceoff-actions"><button onClick={() => dispatch({ type: 'SET_FACEOFF_TURN', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Beginnt {index === 0 ? 'A' : 'B'}</button><button onClick={() => dispatch({ type: 'SET_CONTROL', team: index as 0 | 1 })} disabled={state.phase !== 'faceOff'}>Kontrolle {index === 0 ? 'A' : 'B'}</button></div></article>)}
           {state.phase === 'gameOver' && <button className="primary reset-button" onClick={reset}>Neues Spiel · gleiche Teams</button>}
           <Link className="text-link" to="/setup">Zur Einrichtung</Link>
         </section>
       </div>
-      <details className="cheatsheet"><summary>Tastatur</summary><div><kbd>Enter</kbd> Antwort · <kbd>1–8</kbd> aufdecken · <kbd>X</kbd> Fehler · <kbd>J/N</kbd> bestätigen/verwerfen · <kbd>R</kbd> nochmals · <kbd>A/B</kbd> Kontrolle · <kbd>Z</kbd> zurück · <kbd>N</kbd> weiter · <kbd>M</kbd> Ton</div></details>
+      <details className="cheatsheet"><summary>Tastatur</summary><div><kbd>Enter</kbd> Antwort · <kbd>1–8</kbd> aufdecken · <kbd>X</kbd> Fehler · <kbd>J/N</kbd> bestätigen/verwerfen · <kbd>R</kbd> nochmals · <kbd>A/B</kbd> Duellstart · <kbd>Z</kbd> zurück · <kbd>N</kbd> weiter · <kbd>M</kbd> Ton</div></details>
     </main>
   );
 }
