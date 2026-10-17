@@ -1,0 +1,306 @@
+import { Hono } from 'hono';
+import { nanoid } from 'nanoid';
+import type { GameConfig, JudgeRequest, PackFile, Question, QuestionInput } from '../game/types';
+import { judgeGuess } from './judge';
+
+type Bindings = {
+  DB: D1Database;
+  ASSETS?: Fetcher;
+  MISTRAL_API_KEY?: string;
+  MOCK_JUDGE?: string;
+};
+
+export const app = new Hono<{ Bindings: Bindings }>();
+
+app.get('/api/health', (context) => context.json({ ok: true }));
+
+app.get('/api/packs', async (context) => {
+  const result = await context.env.DB.prepare(`
+    SELECT p.id, p.name, p.source, COUNT(q.id) AS question_count
+    FROM packs p LEFT JOIN questions q ON q.pack_id = p.id AND q.status = 'approved'
+    GROUP BY p.id ORDER BY p.name
+  `).all<{ id: string; name: string; source: 'manual' | 'protoqa' | 'survey'; question_count: number }>();
+  return context.json(result.results.map((row) => ({ id: row.id, name: row.name, source: row.source, questionCount: row.question_count })));
+});
+
+app.get('/api/questions', async (context) => {
+  const packs = (context.req.query('packs') ?? '').split(',').filter(Boolean);
+  const requestedCount = Number(context.req.query('count') ?? 5);
+  if (!Number.isFinite(requestedCount) || !Number.isInteger(requestedCount) || requestedCount < 1) {
+    return context.json({ error: 'Die Anzahl muss eine positive ganze Zahl sein.' }, 400);
+  }
+  const count = Math.min(10, requestedCount);
+  const excludePlayed = context.req.query('excludePlayed') === '1';
+  const where: string[] = ["q.status = 'approved'"];
+  const values: unknown[] = [];
+  if (packs.length) {
+    where.push(`q.pack_id IN (${packs.map(() => '?').join(',')})`);
+    values.push(...packs);
+  }
+  if (excludePlayed) where.push('q.times_played = 0');
+  const rows = await context.env.DB.prepare(`SELECT q.* FROM questions q WHERE ${where.join(' AND ')} ORDER BY RANDOM() LIMIT ?`)
+    .bind(...values, count).all<QuestionRow>();
+  return context.json(await hydrateQuestions(context.env.DB, rows.results));
+});
+
+app.get('/api/questions/:id', async (context) => {
+  const row = await context.env.DB.prepare('SELECT * FROM questions WHERE id = ?').bind(context.req.param('id')).first<QuestionRow>();
+  if (!row) return context.json({ error: 'Frage nicht gefunden.' }, 404);
+  return context.json((await hydrateQuestions(context.env.DB, [row]))[0]);
+});
+
+app.post('/api/questions', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  const error = validateQuestion(input);
+  if (error) return context.json({ error }, 400);
+  const question = input as QuestionInput;
+  const id = question.id || nanoid();
+  await context.env.DB.batch(questionStatements(context.env.DB, id, question, false));
+  return context.json({ ...question, id }, 201);
+});
+
+app.put('/api/questions/:id', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  const error = validateQuestion(input);
+  if (error) return context.json({ error }, 400);
+  const question = input as QuestionInput;
+  const id = context.req.param('id');
+  const exists = await context.env.DB.prepare('SELECT id, pack_id FROM questions WHERE id = ?').bind(id)
+    .first<{ id: string; pack_id: string }>();
+  if (!exists) return context.json({ error: 'Frage nicht gefunden.' }, 404);
+  if (exists.pack_id !== question.packId) return context.json({ error: 'Eine Fragen-ID kann nicht in ein anderes Paket verschoben werden.' }, 409);
+  await context.env.DB.batch(questionStatements(context.env.DB, id, question, true));
+  return context.json({ ...question, id });
+});
+
+app.delete('/api/questions/:id', async (context) => {
+  await context.env.DB.prepare('DELETE FROM questions WHERE id = ?').bind(context.req.param('id')).run();
+  return context.json({ ok: true });
+});
+
+app.get('/api/packs/:id/export', async (context) => {
+  const pack = await context.env.DB.prepare('SELECT id, name, source FROM packs WHERE id = ?').bind(context.req.param('id')).first<PackFile['pack']>();
+  if (!pack) return context.json({ error: 'Paket nicht gefunden.' }, 404);
+  const rows = await context.env.DB.prepare('SELECT * FROM questions WHERE pack_id = ? ORDER BY id').bind(pack.id).all<QuestionRow>();
+  return context.json({ pack, questions: await hydrateQuestions(context.env.DB, rows.results) } satisfies PackFile);
+});
+
+app.post('/api/packs/import', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  if (!isRecord(input) || !isRecord(input.pack) || typeof input.pack.id !== 'string' || !isSlug(input.pack.id) || typeof input.pack.name !== 'string' || !input.pack.name.trim()
+    || typeof input.pack.source !== 'string' || !['manual', 'protoqa', 'survey'].includes(input.pack.source) || !Array.isArray(input.questions)) {
+    return context.json({ error: 'Ungültiges Paket.' }, 400);
+  }
+  const file = input as unknown as PackFile;
+  const seenQuestionIds = new Set<string>();
+  for (const question of file.questions) {
+    const error = validateQuestion({ ...question, packId: file.pack.id });
+    if (error) return context.json({ error }, 400);
+    if (!question.id) continue;
+    if (seenQuestionIds.has(question.id)) return context.json({ error: 'Doppelte Fragen-ID im Paket.' }, 400);
+    seenQuestionIds.add(question.id);
+  }
+  const questions = file.questions.map((question) => ({ ...question, id: question.id || nanoid(), packId: file.pack.id }));
+  const payload = JSON.stringify(questions);
+  const existing = await context.env.DB.prepare(`
+    SELECT id, pack_id FROM questions
+    WHERE id IN (SELECT json_extract(value, '$.id') FROM json_each(?))
+  `).bind(payload).all<{ id: string; pack_id: string }>();
+  if (existing.results.some((question) => question.pack_id !== file.pack.id)) {
+    return context.json({ error: 'Mindestens eine Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
+  }
+  const statements: D1PreparedStatement[] = [
+    context.env.DB.prepare('INSERT INTO packs (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, source = excluded.source')
+      .bind(file.pack.id, file.pack.name, file.pack.source),
+    context.env.DB.prepare(`
+      INSERT INTO questions (id, pack_id, text, survey_size, difficulty, status)
+      SELECT json_extract(value, '$.id'), ?, json_extract(value, '$.text'),
+        json_extract(value, '$.surveySize'), json_extract(value, '$.difficulty'), json_extract(value, '$.status')
+      FROM json_each(?) WHERE true
+      ON CONFLICT(id) DO UPDATE SET pack_id = excluded.pack_id, text = excluded.text,
+        survey_size = excluded.survey_size, difficulty = excluded.difficulty,
+        status = excluded.status, updated_at = datetime('now')
+    `).bind(file.pack.id, payload),
+    context.env.DB.prepare(`
+      DELETE FROM answers
+      WHERE question_id IN (SELECT json_extract(value, '$.id') FROM json_each(?))
+    `).bind(payload),
+    context.env.DB.prepare(`
+      INSERT INTO answers (question_id, rank, label, points, aliases)
+      SELECT json_extract(question.value, '$.id'), json_extract(answer.value, '$.rank'),
+        json_extract(answer.value, '$.label'), json_extract(answer.value, '$.points'),
+        json_extract(answer.value, '$.aliases')
+      FROM json_each(?) AS question, json_each(question.value, '$.answers') AS answer
+    `).bind(payload),
+  ];
+  try {
+    await context.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes('question_pack_collision')) {
+      return context.json({ error: 'Mindestens eine Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
+    }
+    throw error;
+  }
+  return context.json({ ok: true, count: file.questions.length });
+});
+
+app.post('/api/games', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  if (!isRecord(input) || !isGameConfig(input.config) || !Array.isArray(input.questionIds) || input.questionIds.length !== input.config.rounds
+    || !input.questionIds.every((id) => typeof id === 'string' && id) || new Set(input.questionIds).size !== input.questionIds.length) {
+    return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
+  }
+  const body = input as unknown as { config: GameConfig; questionIds: string[] };
+  const eligibleQuestions = await context.env.DB.prepare(`
+    SELECT id FROM questions
+    WHERE status = 'approved'
+      AND pack_id IN (${body.config.packIds.map(() => '?').join(',')})
+      AND id IN (${body.questionIds.map(() => '?').join(',')})
+      ${body.config.allowRepeats ? '' : 'AND times_played = 0'}
+  `).bind(...body.config.packIds, ...body.questionIds).all<{ id: string }>();
+  if (eligibleQuestions.results.length !== body.questionIds.length) {
+    return context.json({ error: 'Mindestens eine Frage ist nicht spielbar.' }, 400);
+  }
+  const id = nanoid();
+  const statements = [
+    context.env.DB.prepare('INSERT INTO games (id, config) VALUES (?, ?)').bind(id, JSON.stringify(body.config)),
+    ...body.questionIds.map((questionId, index) => context.env.DB.prepare('INSERT INTO game_questions (game_id, round_index, question_id) VALUES (?, ?, ?)').bind(id, index, questionId)),
+    ...body.questionIds.map((questionId) => context.env.DB.prepare("UPDATE questions SET times_played = times_played + 1, last_played_at = datetime('now') WHERE id = ?").bind(questionId)),
+  ];
+  try {
+    await context.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes('question_not_playable')) {
+      return context.json({ error: 'Mindestens eine Frage wurde bereits verwendet oder ist nicht spielbar.' }, 409);
+    }
+    throw error;
+  }
+  return context.json({ id }, 201);
+});
+
+app.put('/api/games/:id', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  if (!isRecord(input) || !isRecord(input.state)) return context.json({ error: 'Spielstand unvollständig.' }, 400);
+  const { state } = input;
+  await context.env.DB.prepare("UPDATE games SET state = ?, finished_at = CASE WHEN json_extract(?, '$.phase') = 'gameOver' THEN datetime('now') ELSE NULL END WHERE id = ?")
+    .bind(JSON.stringify(state), JSON.stringify(state), context.req.param('id')).run();
+  return context.json({ ok: true });
+});
+
+app.post('/api/judge', async (context) => {
+  const input = await context.req.json<unknown>().catch(() => null);
+  if (!isJudgeRequest(input)) return context.json({ error: 'Prüfanfrage unvollständig.' }, 400);
+  return context.json(await judgeGuess(input, context.env));
+});
+
+app.notFound((context) => {
+  if (context.req.path.startsWith('/api/')) return context.json({ error: 'Nicht gefunden.' }, 404);
+  return context.env.ASSETS
+    ? context.env.ASSETS.fetch(context.req.raw)
+    : context.json({ error: 'Nicht gefunden.' }, 404);
+});
+app.onError((error, context) => {
+  console.error(error);
+  return context.json({ error: 'Interner Fehler.' }, 500);
+});
+
+interface QuestionRow {
+  id: string;
+  pack_id: string;
+  text: string;
+  survey_size: number;
+  difficulty: 1 | 2 | 3;
+  status: 'draft' | 'approved';
+}
+
+async function hydrateQuestions(db: D1Database, rows: QuestionRow[]): Promise<Question[]> {
+  if (!rows.length) return [];
+  const answers = await db.prepare(`
+    SELECT question_id, rank, label, points, aliases FROM answers
+    WHERE question_id IN (SELECT value FROM json_each(?))
+    ORDER BY question_id, rank
+  `).bind(JSON.stringify(rows.map((row) => row.id)))
+    .all<{ question_id: string; rank: number; label: string; points: number; aliases: string }>();
+  const byQuestion = new Map<string, Question['answers']>();
+  for (const { question_id: questionId, ...answer } of answers.results) {
+    const list = byQuestion.get(questionId) ?? [];
+    list.push({ ...answer, aliases: JSON.parse(answer.aliases) as string[] });
+    byQuestion.set(questionId, list);
+  }
+  return rows.map((row) => ({
+    id: row.id, packId: row.pack_id, text: row.text, surveySize: row.survey_size,
+    difficulty: row.difficulty, status: row.status, answers: byQuestion.get(row.id) ?? [],
+  }));
+}
+
+export function validateQuestion(input: unknown): string | null {
+  if (!isRecord(input)) return 'Paket und Fragetext sind erforderlich.';
+  const question = input as Partial<QuestionInput>;
+  if (question.id !== undefined && (typeof question.id !== 'string' || !question.id.trim())) return 'Die Fragen-ID muss Text sein.';
+  if (typeof question.packId !== 'string' || !question.packId.trim() || typeof question.text !== 'string' || !question.text.trim()) return 'Paket und Fragetext sind erforderlich.';
+  if (typeof question.surveySize !== 'number' || !Number.isInteger(question.surveySize) || question.surveySize <= 0) return 'Die Umfragegrösse muss positiv sein.';
+  if (typeof question.difficulty !== 'number' || ![1, 2, 3].includes(question.difficulty)) return 'Die Schwierigkeit muss 1, 2 oder 3 sein.';
+  if (typeof question.status !== 'string' || !['draft', 'approved'].includes(question.status)) return 'Der Status ist ungültig.';
+  if (!Array.isArray(question.answers) || question.answers.length < 4 || question.answers.length > 8) return 'Eine Frage braucht 4 bis 8 Antworten.';
+  let sum = 0;
+  let previousPoints = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < question.answers.length; index += 1) {
+    const answer = question.answers[index];
+    if (!isRecord(answer)) return 'Alle Antworten müssen gültige Objekte sein.';
+    if (answer.rank !== index + 1) return 'Die Ränge müssen lückenlos bei 1 beginnen.';
+    if (typeof answer.label !== 'string' || !answer.label.trim() || answer.label.length > 18) return 'Antworten müssen 1 bis 18 Zeichen lang sein.';
+    const points = answer.points;
+    if (typeof points !== 'number' || !Number.isInteger(points) || points < 0) return 'Punkte müssen positive ganze Zahlen sein.';
+    if (points > previousPoints) return 'Punkte müssen absteigend sortiert sein.';
+    if (!Array.isArray(answer.aliases) || !answer.aliases.every((alias) => typeof alias === 'string' && alias.trim().length > 0
+      && alias === alias.trim() && alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen eine Liste kleingeschriebener Texte sein.';
+    previousPoints = points;
+    sum += points;
+  }
+  if (sum > question.surveySize) return 'Die Punktesumme darf die Umfragegrösse nicht überschreiten.';
+  return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isJudgeRequest(value: unknown): value is JudgeRequest {
+  return isRecord(value) && typeof value.question === 'string' && typeof value.guess === 'string' && Array.isArray(value.answers)
+    && value.answers.every((answer) => isRecord(answer) && Number.isInteger(answer.rank) && typeof answer.label === 'string'
+      && Array.isArray(answer.aliases) && answer.aliases.every((alias) => typeof alias === 'string'));
+}
+
+function isGameConfig(value: unknown): value is GameConfig {
+  if (!isRecord(value) || typeof value.title !== 'string' || !value.title.trim() || !Array.isArray(value.teams) || value.teams.length !== 2
+    || !Number.isInteger(value.rounds) || Number(value.rounds) < 3 || Number(value.rounds) > 10
+    || !Array.isArray(value.multipliers) || !value.multipliers.length || !value.multipliers.every((item) => typeof item === 'number' && Number.isFinite(item) && item > 0)
+    || !Array.isArray(value.packIds) || !value.packIds.length || !value.packIds.every((id) => typeof id === 'string' && isSlug(id))
+    || typeof value.allowRepeats !== 'boolean' || typeof value.hostSeesAnswers !== 'boolean' || !isRecord(value.voice) || !isRecord(value.llm)) return false;
+  const teamsValid = value.teams.every((team) => isRecord(team) && typeof team.name === 'string' && Boolean(team.name.trim())
+    && Array.isArray(team.players) && team.players.length >= 1 && team.players.length <= 6
+    && team.players.every((player) => typeof player === 'string' && Boolean(player.trim())));
+  const voiceValid = typeof value.voice.enabled === 'boolean' && ['de-DE', 'de-CH'].includes(String(value.voice.lang))
+    && typeof value.voice.wakeWord === 'string' && Boolean(value.voice.wakeWord.trim());
+  const threshold = value.llm.autoAcceptAt;
+  const llmValid = typeof value.llm.enabled === 'boolean' && (threshold === null
+    || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1));
+  return teamsValid && voiceValid && llmValid;
+}
+
+function isSlug(value: string): boolean {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+function questionStatements(db: D1Database, id: string, input: QuestionInput, update: boolean): D1PreparedStatement[] {
+  const questionStatement = update
+    ? db.prepare("UPDATE questions SET pack_id = ?, text = ?, survey_size = ?, difficulty = ?, status = ?, updated_at = datetime('now') WHERE id = ?").bind(input.packId, input.text, input.surveySize, input.difficulty, input.status, id)
+    : db.prepare('INSERT INTO questions (id, pack_id, text, survey_size, difficulty, status) VALUES (?, ?, ?, ?, ?, ?)').bind(id, input.packId, input.text, input.surveySize, input.difficulty, input.status);
+  const statements = [questionStatement];
+  if (update) statements.push(db.prepare('DELETE FROM answers WHERE question_id = ?').bind(id));
+  statements.push(...input.answers.map((answer) => db.prepare('INSERT INTO answers (question_id, rank, label, points, aliases) VALUES (?, ?, ?, ?, ?)')
+    .bind(id, answer.rank, answer.label, answer.points, JSON.stringify(answer.aliases))));
+  return statements;
+}
+
+export default app;

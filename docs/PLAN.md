@@ -2,7 +2,9 @@
 
 Coordinator: Claude Code (local). Workers: Orca worktrees (Claude Code or Mistral Vibe).
 Each lane gets the brief below its heading, works only in its listed folders, and must meet its **done when** list.
-The coordinator merges, runs `npm run test`, and does the smoke check before the next phase.
+The coordinator integrates lanes into a review branch, runs `npm run test`, and does the smoke check before the next phase. This is not authority to merge to main or deploy.
+
+First executable handoff: [BUILD_HANDOFF.md](BUILD_HANDOFF.md). Initial delivery target is Phases 0–2 with Visual direction v2; later phases retain their existing order and require their own readiness/authority checks.
 
 ```
 Phase 0  Foundation ─────────────── solo
@@ -56,16 +58,32 @@ Brief: implement `normalize.ts`, `koelner.ts`, `matcher.ts`, `reducer.ts`, `boar
 - [ ] `toBoardView` never contains labels/points of hidden slots (test)
 
 ### Lane B — board UI · folders: `src/client/board/`, `src/client/routes/Board.tsx`, `src/client/audio/`
-Brief: build the board per `docs/VISUAL_SPEC.md`, rendering only a `BoardView` prop. Include a demo mode
-`/board?demo=1` that steps through hard-coded `BoardView` fixtures (intro, question typing, reveals, strikes,
-steal, round end, game over) with the arrow keys. Title wall with our own pixel lettering. WebAudio `sfx.ts`.
+
+Brief: implement **Visual direction v2 — CRT board inside a playful 2000s game-show
+set**, per `docs/VISUAL_SPEC.md`. Render only a `BoardView` prop. Keep the original
+CRT screen inside an original rounded gold bulb marquee, on a blue/violet studio
+stage with amber/cyan light bars, reflection, team podiums and face-off pillars.
+Use `board-original.png` for the screen and `set-us-2000s.png` for studio mood;
+do not copy logos or the oval board silhouette.
+
+Include `/board?demo=1` with arrow-key fixtures for every phase and bulb mode.
+Derive modes and audio cues from existing events/phase changes: `idle` is a local
+render mode, not a new shared event. Deduplicate transient effects by event
+sequence; the reflection must never start sound or effect handlers.
+Do not edit `src/game/types.ts` or redesign `/host`.
 
 **Done when**
-- [ ] demo mode shows every state from the fixture list; looks right fullscreen at 1920×1080 and 1280×720
-- [ ] 4, 6 and 8 answer boards fit without scrolling
-- [ ] reveal = typewriter + count-up + ding; strike = big ✕ + buzzer + strike box
-- [ ] `prefers-reduced-motion` respected
-- [ ] no original logo reproduced
+- [ ] demo shows idle, reveal, strike, both round-win colours and game-over rainbow modes
+- [ ] both face-off pillars, title wall, steal, duplicate and tie states are demonstrated
+- [ ] 4, 6 and 8 answers, question and lime total fit at 1920×1080 and 1280×720 without scrolling or shrinking the CRT for decoration
+- [ ] gold marquee, layered lights, podiums and faded floor reflection match v2 direction
+- [ ] reveal = typewriter + count-up + ding; strike = big ✕ + buzzer + exactly two red bulb flashes
+- [ ] round intro arpeggio, round-win ta-da and synthesized crowd swell obey mute and browser audio activation
+- [ ] repeat snapshots and reconnect do not replay old sounds/effects
+- [ ] reduced motion: static bulbs, instant text/counts, no pulse/flicker/chase; reflection stays
+- [ ] side-by-side screen and studio screenshots reviewed against both source images
+- [ ] no copied logo/oval outline, no new image assets, no host redesign or shared-type diff
+- [ ] actual laptop/HDMI 60fps result recorded, or explicitly pending with a reproducible performance check
 
 ### Lane C — worker API · folders: `src/worker/`, `scripts/seed-d1.ts`, `db/`
 Brief: implement all `/api/*` routes from ARCHITECTURE except survey and rooms. Include `/api/judge` calling Mistral

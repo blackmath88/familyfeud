@@ -1,0 +1,8 @@
+{
+  "schema": "weavr.github-command/v0",
+  "id": "2026-10-17-dispatch-familyfeud-visual-v2-v3",
+  "kind": "dispatch_mission",
+  "payload": {
+    "missionId": "familyfeud-visual-v2-phases-0-2"
+  }
+}

@@ -1,0 +1,93 @@
+name: Weavr command bus
+
+on:
+  push:
+    paths:
+      - ".weavr/inbox/*.json"
+permissions:
+  contents: read
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Forward newly added Weavr commands
+        env:
+          WEAVR_INGRESS_TOKEN: ${{ secrets.WEAVR_GITHUB_INGRESS_TOKEN }}
+          WEAVR_CF_ACCESS_CLIENT_ID: ${{ secrets.WEAVR_CF_ACCESS_CLIENT_ID }}
+          WEAVR_CF_ACCESS_CLIENT_SECRET: ${{ secrets.WEAVR_CF_ACCESS_CLIENT_SECRET }}
+          WEAVR_INGRESS_URL: https://weavr-control.imbodi55.workers.dev/api/github/commands
+          WEAVR_BEFORE_SHA: ${{ github.event.before }}
+          WEAVR_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${WEAVR_INGRESS_TOKEN:-}" ]]; then
+            echo "Missing repository secret WEAVR_GITHUB_INGRESS_TOKEN" >&2
+            exit 1
+          fi
+          if [[ -z "${WEAVR_CF_ACCESS_CLIENT_ID:-}" || -z "${WEAVR_CF_ACCESS_CLIENT_SECRET:-}" ]]; then
+            echo "Missing Cloudflare Access service credentials" >&2
+            exit 1
+          fi
+
+          zero_sha="0000000000000000000000000000000000000000"
+          before="$WEAVR_BEFORE_SHA"
+          if [[ -z "$before" || "$before" == "$zero_sha" ]] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$WEAVR_DEFAULT_BRANCH"
+            before="$(git merge-base "$GITHUB_SHA" "origin/$WEAVR_DEFAULT_BRANCH")"
+          fi
+
+          mapfile -t files < <(git diff --name-only --diff-filter=A "$before" "$GITHUB_SHA" -- '.weavr/inbox/*.json')
+
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No newly added Weavr command files."
+            exit 0
+          fi
+
+          for file in "${files[@]}"; do
+            file="${file#./}"
+            echo "Forwarding $file"
+
+            jq \
+              --arg repo "$GITHUB_REPOSITORY" \
+              --arg sha "$GITHUB_SHA" \
+              --arg path "$file" \
+              --arg ref "$GITHUB_REF" \
+              --arg actor "$GITHUB_ACTOR" \
+              '. + {
+                repository: $repo,
+                provenance: {
+                  commitSha: $sha,
+                  path: $path,
+                  ref: $ref,
+                  actor: $actor
+                }
+              }' "$file" > /tmp/weavr-command.json
+
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $WEAVR_INGRESS_TOKEN" \
+              --header "CF-Access-Client-Id: $WEAVR_CF_ACCESS_CLIENT_ID" \
+              --header "CF-Access-Client-Secret: $WEAVR_CF_ACCESS_CLIENT_SECRET" \
+              --header "Content-Type: application/json" \
+              --data-binary @/tmp/weavr-command.json \
+              --output "$response_file" \
+              --write-out "%{http_code}" \
+              "$WEAVR_INGRESS_URL")"
+
+            cat "$response_file"
+            echo
+            if [[ ! "$status" =~ ^2 ]]; then
+              echo "Weavr command delivery failed with HTTP $status" >&2
+              exit 1
+            fi
+
+          done
