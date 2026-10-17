@@ -12,6 +12,10 @@ const host = await context.newPage();
 try {
   await host.goto(`${baseUrl}/setup`);
   await expect(host.getByRole('heading', { name: 'Familien-Quiz' })).toBeVisible();
+  await host.getByLabel('Runden').fill('');
+  await host.getByRole('button', { name: 'Spiel starten' }).click();
+  expect(await host.getByLabel('Runden').evaluate((input) => Reflect.get(Reflect.get(input, 'validity'), 'valid'))).toBe(false);
+  await host.getByLabel('Runden').fill('3');
   await host.getByRole('checkbox', { name: 'Wiederholungen erlauben' }).check();
   await host.getByRole('button', { name: 'Spiel starten' }).click();
   await host.waitForURL('**/host');
@@ -130,7 +134,7 @@ try {
   await reducedPage.screenshot({ path: resolve(screenshotDir, 'board-reduced-motion-1280x720.png') });
   await reduced.close();
 
-  console.log(`Browser smoke passed: setup, audio activation/mute, team-B-first face-off, 3 keyboard rounds, final-answer reveal feedback, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
+  console.log(`Browser smoke passed: setup validation, audio activation/mute, team-B-first face-off, 3 keyboard rounds, final-answer reveal feedback, board sync, isolated board storage, hidden-answer safety, staggered round-end answers, persisted reset, reset/undo event replay, duplicate discard, 1920×1080, 1280×720, 390×844, reduced motion. Screenshots: ${screenshotDir}`);
 } finally {
   await browser.close();
 }

@@ -33,7 +33,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   if (next === state) return state;
   if (action.type === 'START_GAME') return next;
   if (action.type === 'JUDGE_RESULT') return next;
-  if (action.type === 'DISCARD') return { ...next, history: state.history.slice(0, -1) };
+  if (action.type === 'DISCARD') {
+    const beforeGuess = state.history.at(-1);
+    if (beforeGuess && sameGamePosition(beforeGuess, snapshot(next))) {
+      return { ...next, lastEvent: beforeGuess.lastEvent, history: state.history.slice(0, -1) };
+    }
+    return { ...next, history: state.history };
+  }
   return { ...next, history: [...state.history, snapshot(state)].slice(-50) };
 }
 
@@ -264,5 +270,15 @@ function snapshot(state: GameState): GameSnapshot {
 function undo(state: GameState): GameState {
   const previous = state.history.at(-1);
   if (!previous) return state;
-  return { ...structuredClone(previous), history: state.history.slice(0, -1) };
+  let history = state.history.slice(0, -1);
+  if (previous.pending && history.at(-1) && sameGamePosition(previous, history.at(-1)!)) {
+    history = history.slice(0, -1);
+  }
+  return { ...structuredClone(previous), history };
+}
+
+function sameGamePosition(left: GameSnapshot, right: GameSnapshot): boolean {
+  const { pending: _leftPending, lastEvent: _leftEvent, ...leftPosition } = left;
+  const { pending: _rightPending, lastEvent: _rightEvent, ...rightPosition } = right;
+  return JSON.stringify(leftPosition) === JSON.stringify(rightPosition);
 }

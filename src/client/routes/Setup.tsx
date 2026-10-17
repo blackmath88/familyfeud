@@ -37,6 +37,10 @@ export function Setup() {
       setError('Bitte zwei Teams, Spielerinnen und Spieler sowie ein Paket angeben.');
       return;
     }
+    if (!Number.isInteger(rounds) || rounds < 3 || rounds > 10) {
+      setError('Bitte zwischen 3 und 10 Runden wählen.');
+      return;
+    }
     setBusy(true);
     try {
       const config: GameConfig = {
@@ -68,7 +72,7 @@ export function Setup() {
           <label>Spieler (Komma getrennt)<input value={playersB} onChange={(event) => setPlayersB(event.target.value)} /></label>
         </div></section>
         <section><h2>Spiel</h2><div className="form-grid">
-          <label>Runden<input type="number" min="3" max="10" value={rounds} onChange={(event) => setRounds(Number(event.target.value))} /></label>
+          <label>Runden<input required type="number" min="3" max="10" value={rounds} onChange={(event) => setRounds(Number(event.target.value))} /></label>
           <label>Multiplikatoren<input value={multipliers} onChange={(event) => setMultipliers(event.target.value)} /></label>
         </div>
           <fieldset><legend>Fragepakete</legend>{packs.map((pack) => <label className="check" key={pack.id}><input type="checkbox" checked={selectedPacks.includes(pack.id)} onChange={() => setSelectedPacks((current) => current.includes(pack.id) ? current.filter((id) => id !== pack.id) : [...current, pack.id])} />{pack.name} <small>{pack.questionCount ?? 0} Fragen</small></label>)}</fieldset>
