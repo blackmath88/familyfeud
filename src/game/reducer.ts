@@ -119,8 +119,8 @@ function accept(state: GameState, rank: number): GameState {
     lastEvent: { seq: nextSeq(state), type: 'reveal', rank },
   };
   if (state.phase === 'faceOff') return resolveFaceOffHit(withReveal, team, rank);
-  if (state.phase === 'steal') return finishRound(withReveal, team, rank);
-  if (slots.every((slot) => slot.revealed !== null)) return finishRound(withReveal, round.control ?? team, rank);
+  if (state.phase === 'steal') return finishRound(withReveal, team);
+  if (slots.every((slot) => slot.revealed !== null)) return finishRound(withReveal, round.control ?? team);
   return withReveal;
 }
 
@@ -183,7 +183,7 @@ function strike(state: GameState): GameState {
   return next;
 }
 
-function finishRound(state: GameState, winner: TeamId, revealRank?: number): GameState {
+function finishRound(state: GameState, winner: TeamId): GameState {
   const round = state.round!;
   const slots = round.slots.map((slot) => slot.revealed === null ? { ...slot, revealed: 'end' as const } : slot);
   const award = round.pot * round.multiplier;
@@ -195,7 +195,7 @@ function finishRound(state: GameState, winner: TeamId, revealRank?: number): Gam
     scores,
     pending: null,
     round: { ...round, slots, winner },
-    lastEvent: { seq: nextSeq(state), type: 'roundWin', team: winner, points: award, ...(revealRank === undefined ? {} : { revealRank }) },
+    lastEvent: { seq: nextSeq(state), type: 'roundWin', team: winner, points: award },
   };
 }
 

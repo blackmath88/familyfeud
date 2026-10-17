@@ -79,7 +79,7 @@ app.get('/api/packs/:id/export', async (context) => {
 
 app.post('/api/packs/import', async (context) => {
   const file = await context.req.json<PackFile>();
-  if (!file.pack?.id || !file.pack.name || !Array.isArray(file.questions)) return context.json({ error: 'Ungültiges Paket.' }, 400);
+  if (!file.pack?.id || !file.pack.name || !['manual', 'protoqa', 'survey'].includes(file.pack.source) || !Array.isArray(file.questions)) return context.json({ error: 'Ungültiges Paket.' }, 400);
   for (const question of file.questions) {
     const error = validateQuestion({ ...question, packId: file.pack.id });
     if (error) return context.json({ error }, 400);

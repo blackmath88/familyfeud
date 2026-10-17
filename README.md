@@ -32,7 +32,7 @@ Main host controls:
 | Key | Action |
 | --- | --- |
 | `N` | Start/advance a round, reject a pending suggestion |
-| `A` / `B` | Give face-off control to team A/B |
+| `A` / `B` | Select which team answers first in the face-off |
 | `1`–`8` | Reveal an answer for the active team |
 | `X` | Confirm a strike |
 | `J` / `R` | Accept or discard a pending suggestion |

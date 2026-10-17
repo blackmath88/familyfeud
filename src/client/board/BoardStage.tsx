@@ -4,13 +4,10 @@ import { playSfx } from '../audio/sfx';
 
 export type BulbMode = 'idle' | 'reveal' | 'strike' | 'roundWinA' | 'roundWinB' | 'gameOver';
 
-export function BoardStage({ view, mode, demo = false, showDuplicate = false, animateIntro = false, animateRoundEnd = false }: { view: BoardView; mode: BulbMode; demo?: boolean; showDuplicate?: boolean; animateIntro?: boolean; animateRoundEnd?: boolean }) {
+export function BoardStage({ view, mode, revealRank = null, demo = false, showDuplicate = false, animateIntro = false, animateRoundEnd = false }: { view: BoardView; mode: BulbMode; revealRank?: number | null; demo?: boolean; showDuplicate?: boolean; animateIntro?: boolean; animateRoundEnd?: boolean }) {
   const isTitle = view.phase === 'setup';
   const gameOver = view.phase === 'gameOver';
   const status = statusText(view, showDuplicate);
-  const revealRank = view.lastEvent?.type === 'reveal'
-    ? view.lastEvent.rank
-    : view.lastEvent?.type === 'roundWin' ? view.lastEvent.revealRank ?? null : null;
   const revealedPoints = mode === 'reveal' && revealRank !== null
     ? view.slots.find((slot) => slot.rank === revealRank)?.points ?? 0
     : 0;

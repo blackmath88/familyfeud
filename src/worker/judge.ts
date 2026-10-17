@@ -32,7 +32,8 @@ export async function judgeGuess(request: JudgeRequest, env: JudgeEnv): Promise<
     if (!response.ok) return unavailable();
     const payload = await response.json() as { choices?: { message?: { content?: string } }[] };
     const parsed = JSON.parse(payload.choices?.[0]?.message?.content ?? '{}') as Partial<JudgeResponse>;
-    if ((parsed.rank !== null && !Number.isInteger(parsed.rank)) || typeof parsed.confidence !== 'number' || typeof parsed.reason !== 'string') return unavailable();
+    if ((parsed.rank !== null && (!Number.isInteger(parsed.rank) || !request.answers.some((answer) => answer.rank === parsed.rank)))
+      || typeof parsed.confidence !== 'number' || typeof parsed.reason !== 'string') return unavailable();
     return { rank: parsed.rank ?? null, confidence: Math.max(0, Math.min(1, parsed.confidence)), reason: parsed.reason };
   } catch {
     return unavailable();

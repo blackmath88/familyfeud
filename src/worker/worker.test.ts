@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JudgeRequest, QuestionInput } from '../game/types';
 import { judgeGuess } from './judge';
 import { app, validateQuestion } from './index';
@@ -33,9 +33,21 @@ describe('worker routing', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Nicht gefunden.' });
     expect(assetRequests).toBe(0);
   });
+
+  it('rejects an unsupported imported pack source before touching D1', async () => {
+    const response = await app.request('/api/packs/import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pack: { id: 'bad', name: 'Bad', source: 'external' }, questions: [] }),
+    }, {} as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: 'Ungültiges Paket.' });
+  });
 });
 
 describe('judge fallback', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   const request: JudgeRequest = {
     question: 'Was zieht man zum Schlafen an?', guess: 'Nachthemd anziehen',
     answers: [{ rank: 1, label: 'Schlafanzug an', aliases: ['pyjama'] }],
@@ -47,5 +59,12 @@ describe('judge fallback', () => {
 
   it('returns judge_unavailable immediately without a key', async () => {
     await expect(judgeGuess(request, {})).resolves.toEqual({ rank: null, confidence: 0, reason: 'judge_unavailable' });
+  });
+
+  it('rejects a model rank that was not offered', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ rank: 99, confidence: 0.99, reason: 'invalid' }) } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+    await expect(judgeGuess(request, { MISTRAL_API_KEY: 'test' })).resolves.toEqual({ rank: null, confidence: 0, reason: 'judge_unavailable' });
   });
 });

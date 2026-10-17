@@ -14,12 +14,14 @@ export function Board() {
   const synced = useBoardSync(demo ? '' : gameId);
   const [demoIndex, setDemoIndex] = useState(0);
   const [mode, setMode] = useState<BulbMode>('idle');
+  const [revealRank, setRevealRank] = useState<number | null>(null);
   const [showDuplicate, setShowDuplicate] = useState(false);
   const [animateIntro, setAnimateIntro] = useState(false);
   const [animateRoundEnd, setAnimateRoundEnd] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const lastSeq = useRef<number | null>(null);
   const lastPhase = useRef<string | null>(null);
+  const previousView = useRef<BoardView | null>(null);
   const view = demo ? demoFixtures[demoIndex].view : synced;
 
   useEffect(() => {
@@ -44,13 +46,17 @@ export function Board() {
     lastSeq.current = null;
     lastPhase.current = null;
     setMode('idle');
+    setRevealRank(null);
     setShowDuplicate(false);
     setAnimateIntro(false);
     setAnimateRoundEnd(false);
+    previousView.current = null;
   }, [gameId]);
 
   useEffect(() => {
     if (!view) return;
+    const priorView = previousView.current;
+    previousView.current = view;
     const firstSnapshot = lastPhase.current === null;
     if (!firstSnapshot && view.phase === 'roundIntro' && lastPhase.current !== 'roundIntro') {
       setAnimateIntro(true);
@@ -64,26 +70,33 @@ export function Board() {
     const event = view.lastEvent;
     if (!event || (!demo && firstSnapshot) || (!demo && event.seq <= (lastSeq.current ?? -1))) {
       setMode(view.phase === 'gameOver' ? 'gameOver' : 'idle');
+      setRevealRank(null);
       setShowDuplicate(false);
       lastSeq.current = event?.seq ?? null;
       return;
     }
     lastSeq.current = event.seq;
     setShowDuplicate(event.type === 'duplicate');
-    if (event.type === 'reveal') { setMode('reveal'); playSfx('ding'); }
-    else if (event.type === 'strike') { setMode('strike'); playSfx('strike'); }
+    if (event.type === 'reveal') { setRevealRank(event.rank); setMode('reveal'); playSfx('ding'); }
+    else if (event.type === 'strike') { setRevealRank(null); setMode('strike'); playSfx('strike'); }
     else if (event.type === 'roundWin') {
       const winnerMode = event.team === 0 ? 'roundWinA' : 'roundWinB';
-      if (event.revealRank !== undefined) {
+      const finalRevealRank = view.slots.find((slot) =>
+        slot.state === 'hit' && priorView?.slots.find((priorSlot) => priorSlot.rank === slot.rank)?.state === 'hidden',
+      )?.rank;
+      if (finalRevealRank !== undefined) {
+        setRevealRank(finalRevealRank);
         setMode('reveal');
         playSfx('ding');
         const timer = window.setTimeout(() => {
+          setRevealRank(null);
           setMode(winnerMode);
           playSfx('win');
           playSfx('crowd');
         }, 800);
         return () => clearTimeout(timer);
       }
+      setRevealRank(null);
       setMode(winnerMode);
       playSfx('win');
       playSfx('crowd');
@@ -91,7 +104,7 @@ export function Board() {
     else if (event.type === 'gameOver') { setMode('gameOver'); playSfx('win'); }
     else setMode('idle');
     if (event.type === 'reveal' || event.type === 'strike') {
-      const timer = window.setTimeout(() => setMode('idle'), event.type === 'strike' ? 950 : 800);
+      const timer = window.setTimeout(() => { setRevealRank(null); setMode('idle'); }, event.type === 'strike' ? 950 : 800);
       return () => clearTimeout(timer);
     }
   }, [demo, demoIndex, view]);
@@ -104,7 +117,7 @@ export function Board() {
 
   if (!view) return <main className="board-wait"><div className="wait-logo">FAMILIEN<br />QUIZ</div><p>Warte auf den Spielleiter …</p><small>Öffne dieses Brett über «Brett öffnen» im Host-Fenster.</small></main>;
   return <>
-    <BoardStage view={view} mode={mode} demo={demo} showDuplicate={showDuplicate} animateIntro={animateIntro} animateRoundEnd={animateRoundEnd} />
+    <BoardStage view={view} mode={mode} revealRank={revealRank} demo={demo} showDuplicate={showDuplicate} animateIntro={animateIntro} animateRoundEnd={animateRoundEnd} />
     {demo && <aside className="demo-controls"><button aria-label="Vorheriger Demo-Zustand" onClick={() => setDemoIndex((demoIndex - 1 + demoFixtures.length) % demoFixtures.length)}>←</button><span><b>DEMO {demoIndex + 1}/{demoFixtures.length}</b>{demoFixtures[demoIndex].label}</span><button aria-label="Nächster Demo-Zustand" onClick={() => setDemoIndex((demoIndex + 1) % demoFixtures.length)}>→</button>{!audioReady && <button className="audio-unlock" onClick={enableAudio}>Ton aktivieren</button>}</aside>}
     {!demo && !audioReady && <button className="board-audio-unlock" onClick={enableAudio}>Ton aktivieren</button>}
   </>;
