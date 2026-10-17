@@ -1,0 +1,674 @@
+{
+  "_note": "Hand-written sample pack. Points are ESTIMATES, not survey data. Swiss spelling (ss).",
+  "pack": {
+    "id": "beispiel",
+    "name": "Beispiel",
+    "source": "manual"
+  },
+  "questions": [
+    {
+      "id": "bsp-001",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, das man vor dem Schlafengehen macht.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Zähne putzen",
+          "points": 38,
+          "aliases": [
+            "zähneputzen",
+            "zahnbürste",
+            "zähne"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Lesen",
+          "points": 17,
+          "aliases": [
+            "buch lesen",
+            "ein buch",
+            "gute nacht geschichte"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Schlafanzug an",
+          "points": 12,
+          "aliases": [
+            "pyjama",
+            "pyjama anziehen",
+            "schlafanzug anziehen",
+            "umziehen"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Toilette",
+          "points": 10,
+          "aliases": [
+            "aufs klo",
+            "klo",
+            "wc",
+            "pinkeln"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Wecker stellen",
+          "points": 8,
+          "aliases": [
+            "wecker",
+            "alarm stellen"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Handy schauen",
+          "points": 7,
+          "aliases": [
+            "handy",
+            "am handy",
+            "social media",
+            "smartphone"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-002",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, das man in der Badi mitnimmt.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Badetuch",
+          "points": 33,
+          "aliases": [
+            "tuch",
+            "handtuch",
+            "frottiertuch"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Sonnencreme",
+          "points": 25,
+          "aliases": [
+            "sonnenschutz",
+            "creme",
+            "sonnenmilch"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Badehose",
+          "points": 14,
+          "aliases": [
+            "badekleid",
+            "bikini",
+            "badesachen",
+            "badeanzug"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Essen",
+          "points": 11,
+          "aliases": [
+            "picknick",
+            "snacks",
+            "sandwich",
+            "znüni"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Getränk",
+          "points": 9,
+          "aliases": [
+            "wasser",
+            "trinkflasche",
+            "flasche"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-003",
+      "packId": "beispiel",
+      "text": "Nennen Sie ein Tier, das man auf einem Bauernhof sieht.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Kuh",
+          "points": 41,
+          "aliases": [
+            "kühe",
+            "rind",
+            "rinder",
+            "kalb"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Schwein",
+          "points": 19,
+          "aliases": [
+            "schweine",
+            "sau",
+            "ferkel"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Huhn",
+          "points": 14,
+          "aliases": [
+            "hühner",
+            "henne",
+            "hahn",
+            "güggel"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Pferd",
+          "points": 11,
+          "aliases": [
+            "pferde",
+            "pony"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Schaf",
+          "points": 7,
+          "aliases": [
+            "schafe",
+            "lamm"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Katze",
+          "points": 4,
+          "aliases": [
+            "katzen",
+            "büsi"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-004",
+      "packId": "beispiel",
+      "text": "Was isst man an Weihnachten?",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Fondue chinoise",
+          "points": 31,
+          "aliases": [
+            "fondue",
+            "chinoise",
+            "fondue chinois"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Guetzli",
+          "points": 22,
+          "aliases": [
+            "kekse",
+            "weihnachtsguetzli",
+            "plätzchen",
+            "mailänderli"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Braten",
+          "points": 15,
+          "aliases": [
+            "schweinebraten",
+            "rinderbraten",
+            "fleisch"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Raclette",
+          "points": 12,
+          "aliases": [
+            "raclette essen"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Schinken",
+          "points": 8,
+          "aliases": [
+            "schinkli",
+            "schinkli im teig",
+            "schinken im teig"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Lachs",
+          "points": 5,
+          "aliases": [
+            "räucherlachs",
+            "fisch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-005",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, das man im Auto immer dabei hat.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Führerschein",
+          "points": 29,
+          "aliases": [
+            "fahrausweis",
+            "ausweis",
+            "billett"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Warndreieck",
+          "points": 20,
+          "aliases": [
+            "pannendreieck",
+            "dreieck"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Sonnenbrille",
+          "points": 15,
+          "aliases": [
+            "brille"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Wasser",
+          "points": 12,
+          "aliases": [
+            "getränk",
+            "trinkflasche",
+            "flasche"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Erste-Hilfe-Set",
+          "points": 10,
+          "aliases": [
+            "apotheke",
+            "verbandskasten",
+            "notfallapotheke"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Kleingeld",
+          "points": 6,
+          "aliases": [
+            "münzen",
+            "parkgeld",
+            "münz"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-006",
+      "packId": "beispiel",
+      "text": "Nennen Sie einen Grund, zu spät zur Arbeit zu kommen.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Verschlafen",
+          "points": 36,
+          "aliases": [
+            "wecker nicht gehört",
+            "zu lange geschlafen",
+            "verschlafe"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Stau",
+          "points": 24,
+          "aliases": [
+            "verkehr",
+            "viel verkehr"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Zug verspätet",
+          "points": 16,
+          "aliases": [
+            "zug",
+            "tram",
+            "bus",
+            "sbb",
+            "verspätung"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Kinder",
+          "points": 10,
+          "aliases": [
+            "kinder in die schule",
+            "kita",
+            "kind krank"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Schlüssel gesucht",
+          "points": 6,
+          "aliases": [
+            "schlüssel",
+            "schlüssel verloren"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-007",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, das man in jeder Küche findet.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Kühlschrank",
+          "points": 30,
+          "aliases": [
+            "kühler",
+            "frigo"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Herd",
+          "points": 22,
+          "aliases": [
+            "kochherd",
+            "ofen",
+            "backofen"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Messer",
+          "points": 14,
+          "aliases": [
+            "messerblock"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Pfanne",
+          "points": 12,
+          "aliases": [
+            "bratpfanne",
+            "topf",
+            "pfannen"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Spülbecken",
+          "points": 9,
+          "aliases": [
+            "lavabo",
+            "spüle",
+            "abwaschbecken"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Kaffeemaschine",
+          "points": 7,
+          "aliases": [
+            "kaffee",
+            "nespresso"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-008",
+      "packId": "beispiel",
+      "text": "Nennen Sie eine Sportart, die man im Winter macht.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Skifahren",
+          "points": 44,
+          "aliases": [
+            "ski",
+            "ski fahren"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Snowboarden",
+          "points": 18,
+          "aliases": [
+            "snowboard"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Schlitteln",
+          "points": 13,
+          "aliases": [
+            "schlitten",
+            "schlittenfahren",
+            "rodeln"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Eislaufen",
+          "points": 10,
+          "aliases": [
+            "schlittschuh",
+            "schlittschuhlaufen",
+            "eiskunstlauf"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Langlauf",
+          "points": 8,
+          "aliases": [
+            "langlaufen",
+            "langlaufski"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Eishockey",
+          "points": 4,
+          "aliases": [
+            "hockey"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-009",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, das Kinder gerne sammeln.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Panini-Bildli",
+          "points": 28,
+          "aliases": [
+            "panini",
+            "sticker",
+            "sammelbilder",
+            "fussballbilder"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Steine",
+          "points": 22,
+          "aliases": [
+            "kieselsteine"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Karten",
+          "points": 16,
+          "aliases": [
+            "pokemon",
+            "pokemonkarten",
+            "sammelkarten"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Muscheln",
+          "points": 11,
+          "aliases": [
+            "muschel"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Kastanien",
+          "points": 9,
+          "aliases": [
+            "chestene",
+            "marroni"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Stofftiere",
+          "points": 6,
+          "aliases": [
+            "plüschtiere",
+            "kuscheltiere",
+            "teddy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bsp-010",
+      "packId": "beispiel",
+      "text": "Nennen Sie etwas, worüber Familien beim Essen streiten.",
+      "surveySize": 100,
+      "difficulty": 1,
+      "status": "approved",
+      "answers": [
+        {
+          "rank": 1,
+          "label": "Handy am Tisch",
+          "points": 27,
+          "aliases": [
+            "handy",
+            "smartphone",
+            "am handy"
+          ]
+        },
+        {
+          "rank": 2,
+          "label": "Gemüse essen",
+          "points": 21,
+          "aliases": [
+            "gemüse",
+            "aufessen",
+            "teller leer"
+          ]
+        },
+        {
+          "rank": 3,
+          "label": "Politik",
+          "points": 15,
+          "aliases": [
+            "abstimmungen",
+            "wahlen"
+          ]
+        },
+        {
+          "rank": 4,
+          "label": "Abwaschen",
+          "points": 14,
+          "aliases": [
+            "abwasch",
+            "wer abwäscht",
+            "geschirr",
+            "abräumen"
+          ]
+        },
+        {
+          "rank": 5,
+          "label": "Fernsehen",
+          "points": 8,
+          "aliases": [
+            "fernseher",
+            "tv",
+            "serie"
+          ]
+        },
+        {
+          "rank": 6,
+          "label": "Hausaufgaben",
+          "points": 7,
+          "aliases": [
+            "schule",
+            "ufzgi",
+            "aufgaben"
+          ]
+        }
+      ]
+    }
+  ]
+}
