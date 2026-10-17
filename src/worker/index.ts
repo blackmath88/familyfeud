@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
-import type { GameConfig, PackFile, Question, QuestionInput } from '../game/types';
+import type { GameConfig, JudgeRequest, PackFile, Question, QuestionInput } from '../game/types';
 import { judgeGuess } from './judge';
 
 type Bindings = {
@@ -46,23 +46,25 @@ app.get('/api/questions/:id', async (context) => {
 });
 
 app.post('/api/questions', async (context) => {
-  const input = await context.req.json<QuestionInput>();
+  const input = await context.req.json<unknown>();
   const error = validateQuestion(input);
   if (error) return context.json({ error }, 400);
-  const id = input.id || nanoid();
-  await writeQuestion(context.env.DB, id, input, false);
-  return context.json({ ...input, id }, 201);
+  const question = input as QuestionInput;
+  const id = question.id || nanoid();
+  await writeQuestion(context.env.DB, id, question, false);
+  return context.json({ ...question, id }, 201);
 });
 
 app.put('/api/questions/:id', async (context) => {
-  const input = await context.req.json<QuestionInput>();
+  const input = await context.req.json<unknown>();
   const error = validateQuestion(input);
   if (error) return context.json({ error }, 400);
+  const question = input as QuestionInput;
   const id = context.req.param('id');
   const exists = await context.env.DB.prepare('SELECT id FROM questions WHERE id = ?').bind(id).first();
   if (!exists) return context.json({ error: 'Frage nicht gefunden.' }, 404);
-  await writeQuestion(context.env.DB, id, input, true);
-  return context.json({ ...input, id });
+  await writeQuestion(context.env.DB, id, question, true);
+  return context.json({ ...question, id });
 });
 
 app.delete('/api/questions/:id', async (context) => {
@@ -78,8 +80,12 @@ app.get('/api/packs/:id/export', async (context) => {
 });
 
 app.post('/api/packs/import', async (context) => {
-  const file = await context.req.json<PackFile>();
-  if (!file.pack?.id || !file.pack.name || !['manual', 'protoqa', 'survey'].includes(file.pack.source) || !Array.isArray(file.questions)) return context.json({ error: 'Ungültiges Paket.' }, 400);
+  const input = await context.req.json<unknown>();
+  if (!isRecord(input) || !isRecord(input.pack) || typeof input.pack.id !== 'string' || !input.pack.id || typeof input.pack.name !== 'string' || !input.pack.name
+    || typeof input.pack.source !== 'string' || !['manual', 'protoqa', 'survey'].includes(input.pack.source) || !Array.isArray(input.questions)) {
+    return context.json({ error: 'Ungültiges Paket.' }, 400);
+  }
+  const file = input as unknown as PackFile;
   for (const question of file.questions) {
     const error = validateQuestion({ ...question, packId: file.pack.id });
     if (error) return context.json({ error }, 400);
@@ -95,8 +101,10 @@ app.post('/api/packs/import', async (context) => {
 });
 
 app.post('/api/games', async (context) => {
-  const body = await context.req.json<{ config: GameConfig; questionIds: string[] }>();
-  if (!body.config || !Array.isArray(body.questionIds) || body.questionIds.length < 1) return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
+  const input = await context.req.json<unknown>();
+  if (!isRecord(input) || !isRecord(input.config) || !Array.isArray(input.questionIds) || input.questionIds.length < 1
+    || !input.questionIds.every((id) => typeof id === 'string' && id)) return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
+  const body = input as unknown as { config: GameConfig; questionIds: string[] };
   const id = nanoid();
   const statements = [
     context.env.DB.prepare('INSERT INTO games (id, config) VALUES (?, ?)').bind(id, JSON.stringify(body.config)),
@@ -108,13 +116,19 @@ app.post('/api/games', async (context) => {
 });
 
 app.put('/api/games/:id', async (context) => {
-  const { state } = await context.req.json<{ state: unknown }>();
+  const input = await context.req.json<unknown>();
+  if (!isRecord(input) || !isRecord(input.state)) return context.json({ error: 'Spielstand unvollständig.' }, 400);
+  const { state } = input;
   await context.env.DB.prepare("UPDATE games SET state = ?, finished_at = CASE WHEN json_extract(?, '$.phase') = 'gameOver' THEN datetime('now') ELSE finished_at END WHERE id = ?")
     .bind(JSON.stringify(state), JSON.stringify(state), context.req.param('id')).run();
   return context.json({ ok: true });
 });
 
-app.post('/api/judge', async (context) => context.json(await judgeGuess(await context.req.json(), context.env)));
+app.post('/api/judge', async (context) => {
+  const input = await context.req.json<unknown>();
+  if (!isJudgeRequest(input)) return context.json({ error: 'Prüfanfrage unvollständig.' }, 400);
+  return context.json(await judgeGuess(input, context.env));
+});
 
 app.notFound((context) => {
   if (context.req.path.startsWith('/api/')) return context.json({ error: 'Nicht gefunden.' }, 404);
@@ -148,25 +162,41 @@ async function hydrateQuestions(db: D1Database, rows: QuestionRow[]): Promise<Qu
   }));
 }
 
-export function validateQuestion(input: QuestionInput): string | null {
-  if (!input.packId?.trim() || !input.text?.trim()) return 'Paket und Fragetext sind erforderlich.';
-  if (!Number.isInteger(input.surveySize) || input.surveySize <= 0) return 'Die Umfragegrösse muss positiv sein.';
-  if (![1, 2, 3].includes(input.difficulty)) return 'Die Schwierigkeit muss 1, 2 oder 3 sein.';
-  if (!['draft', 'approved'].includes(input.status)) return 'Der Status ist ungültig.';
-  if (!Array.isArray(input.answers) || input.answers.length < 4 || input.answers.length > 8) return 'Eine Frage braucht 4 bis 8 Antworten.';
+export function validateQuestion(input: unknown): string | null {
+  if (!isRecord(input)) return 'Paket und Fragetext sind erforderlich.';
+  const question = input as Partial<QuestionInput>;
+  if (question.id !== undefined && (typeof question.id !== 'string' || !question.id.trim())) return 'Die Fragen-ID muss Text sein.';
+  if (typeof question.packId !== 'string' || !question.packId.trim() || typeof question.text !== 'string' || !question.text.trim()) return 'Paket und Fragetext sind erforderlich.';
+  if (typeof question.surveySize !== 'number' || !Number.isInteger(question.surveySize) || question.surveySize <= 0) return 'Die Umfragegrösse muss positiv sein.';
+  if (typeof question.difficulty !== 'number' || ![1, 2, 3].includes(question.difficulty)) return 'Die Schwierigkeit muss 1, 2 oder 3 sein.';
+  if (typeof question.status !== 'string' || !['draft', 'approved'].includes(question.status)) return 'Der Status ist ungültig.';
+  if (!Array.isArray(question.answers) || question.answers.length < 4 || question.answers.length > 8) return 'Eine Frage braucht 4 bis 8 Antworten.';
   let sum = 0;
-  for (let index = 0; index < input.answers.length; index += 1) {
-    const answer = input.answers[index];
-    if (!answer || typeof answer !== 'object') return 'Alle Antworten müssen gültige Objekte sein.';
+  let previousPoints = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < question.answers.length; index += 1) {
+    const answer = question.answers[index];
+    if (!isRecord(answer)) return 'Alle Antworten müssen gültige Objekte sein.';
     if (answer.rank !== index + 1) return 'Die Ränge müssen lückenlos bei 1 beginnen.';
     if (typeof answer.label !== 'string' || !answer.label.trim() || answer.label.length > 18) return 'Antworten müssen 1 bis 18 Zeichen lang sein.';
-    if (!Number.isInteger(answer.points) || answer.points < 0) return 'Punkte müssen positive ganze Zahlen sein.';
-    if (index > 0 && answer.points > input.answers[index - 1].points) return 'Punkte müssen absteigend sortiert sein.';
+    const points = answer.points;
+    if (typeof points !== 'number' || !Number.isInteger(points) || points < 0) return 'Punkte müssen positive ganze Zahlen sein.';
+    if (points > previousPoints) return 'Punkte müssen absteigend sortiert sein.';
     if (!Array.isArray(answer.aliases) || !answer.aliases.every((alias) => typeof alias === 'string' && alias === alias.toLocaleLowerCase('de-CH'))) return 'Aliase müssen eine Liste kleingeschriebener Texte sein.';
-    sum += answer.points;
+    previousPoints = points;
+    sum += points;
   }
-  if (sum > input.surveySize) return 'Die Punktesumme darf die Umfragegrösse nicht überschreiten.';
+  if (sum > question.surveySize) return 'Die Punktesumme darf die Umfragegrösse nicht überschreiten.';
   return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isJudgeRequest(value: unknown): value is JudgeRequest {
+  return isRecord(value) && typeof value.question === 'string' && typeof value.guess === 'string' && Array.isArray(value.answers)
+    && value.answers.every((answer) => isRecord(answer) && Number.isInteger(answer.rank) && typeof answer.label === 'string'
+      && Array.isArray(answer.aliases) && answer.aliases.every((alias) => typeof alias === 'string'));
 }
 
 async function writeQuestion(db: D1Database, id: string, input: QuestionInput, update: boolean): Promise<void> {

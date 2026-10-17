@@ -16,6 +16,7 @@ const valid: QuestionInput = {
 describe('worker validation', () => {
   it('accepts valid content and rejects structural errors in German', () => {
     expect(validateQuestion(valid)).toBeNull();
+    expect(validateQuestion(null)).toContain('Paket und Fragetext');
     expect(validateQuestion({ ...valid, answers: valid.answers.slice(0, 3) })).toContain('4 bis 8');
     expect(validateQuestion({ ...valid, answers: valid.answers.map((answer, index) => index === 1 ? { ...answer, rank: 4 } : answer) })).toContain('Ränge');
     expect(validateQuestion({ ...valid, answers: valid.answers.map((answer, index) => index === 0 ? { ...answer, aliases: ['Gross'] } : answer) })).toContain('kleingeschrieben');
@@ -42,6 +43,27 @@ describe('worker routing', () => {
     }, {} as Parameters<typeof app.request>[2]);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'Ungültiges Paket.' });
+  });
+
+  it.each(['/api/questions', '/api/packs/import', '/api/games'])('rejects a null body on %s without touching D1', async (path) => {
+    const response = await app.request(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'null',
+    }, {} as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(400);
+  });
+
+  it.each([
+    ['PUT', '/api/games/game-id'],
+    ['POST', '/api/judge'],
+  ])('rejects a null body on %s %s without touching dependencies', async (method, path) => {
+    const response = await app.request(path, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: 'null',
+    }, {} as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(400);
   });
 });
 

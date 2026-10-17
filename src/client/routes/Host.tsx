@@ -17,6 +17,7 @@ export function Host() {
   const [muted, setMuted] = useState(() => localStorage.getItem('fq:muted') === '1');
   const [notice, setNotice] = useState('');
   const persistedRef = useRef('');
+  const persistQueueRef = useRef<Promise<void>>(Promise.resolve());
   const view = useMemo(() => toBoardView(state), [state]);
   useHostSync(state.gameId, view);
 
@@ -29,7 +30,9 @@ export function Host() {
     if (persistedRef.current === signature) return;
     persistedRef.current = signature;
     const { history: _history, ...snapshot } = state;
-    persistGame(state.gameId, snapshot).catch(() => setNotice('Lokaler Spielstand ist sicher; D1-Sicherung fehlgeschlagen.'));
+    const write = persistQueueRef.current.catch(() => undefined).then(() => persistGame(state.gameId, snapshot));
+    persistQueueRef.current = write;
+    write.catch(() => setNotice('Lokaler Spielstand ist sicher; D1-Sicherung fehlgeschlagen.'));
   }, [state]);
 
   useEffect(() => {
