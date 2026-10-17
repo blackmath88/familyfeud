@@ -1,0 +1,87 @@
+{
+  "schema": "weavr.github-command/v0",
+  "id": "2026-10-17-create-familyfeud-visual-v2-v1",
+  "kind": "create_mission",
+  "payload": {
+    "projectId": "blackmath88-familyfeud",
+    "contract": {
+      "id": "familyfeud-visual-v2-phases-0-2",
+      "title": "Family Feud Visual V2 · Phases 0–2",
+      "kind": "ship",
+      "intent": "Implement the authorized keyboard-playable familyfeud experience from the accepted build handoff, architecture, visual specification, content, decisions, seed data, and preserved game types.",
+      "outcome": "A locally verified React and TypeScript Family Feud game implements phases 0–2, matches the supplied visual references at desktop and mobile widths, passes deterministic checks and browser acceptance, and is committed on an implementation branch without merge or deployment.",
+      "requires": {
+        "capabilities": ["repo.read", "repo.write", "tests"],
+        "privacy": "local_required"
+      },
+      "prefers": {
+        "subscriptionBacked": true,
+        "localFirst": true,
+        "providerOrder": ["codex", "claude"]
+      },
+      "sandbox": {
+        "prefer": "native",
+        "fallback": [],
+        "network": "default"
+      },
+      "scope": {
+        "writePaths": [
+          "package.json",
+          "package-lock.json",
+          "index.html",
+          "tsconfig*.json",
+          "vite.config.*",
+          "wrangler.jsonc",
+          ".gitignore",
+          ".dev.vars.example",
+          "src/**",
+          "scripts/**",
+          "db/**",
+          "docs/SMOKE.md"
+        ]
+      },
+      "checks": {
+        "cwd": "."
+      },
+      "authority": {
+        "architectureChange": "forbidden",
+        "dependencyInstall": "allowed",
+        "merge": "forbidden",
+        "externalService": "forbidden"
+      },
+      "acceptance": [
+        "Follow docs/BUILD_HANDOFF.md, PLAN.md, ARCHITECTURE.md, VISUAL_SPEC.md, CONCEPT.md, DECISIONS.md, CONTENT.md, db/seed-rounds.json, and src/game/types.ts as authoritative inputs.",
+        "Implement phases 0–2 as a keyboard-playable host game with deterministic state transitions, scoring, strikes, answer reveal behavior, round progression, and reset behavior.",
+        "Preserve the supplied game types and seed content semantics; do not replace them with a different domain model.",
+        "Match the supplied board, set, and title-wall references at desktop and mobile widths without modifying reference assets.",
+        "Provide automated unit or integration coverage for core game logic and pass lint, typecheck, tests, and production build.",
+        "Pass a browser-driven smoke test covering a complete playable round and responsive layout.",
+        "Keep schedules disabled and do not add scheduled workflows.",
+        "Commit the completed implementation without merging or deploying the app."
+      ],
+      "exclusions": [
+        "Do not edit docs/reference/** or the supplied build/design source documents.",
+        "Do not merge any pull request.",
+        "Do not deploy the application or provision production application infrastructure.",
+        "Do not add schedules, cron triggers, analytics, authentication, multiplayer networking, or unrelated features.",
+        "Do not use paid API-provider fallback or external implementation services.",
+        "Do not waive Needs."
+      ],
+      "escalation": [
+        "Any required architecture change outside the accepted documents.",
+        "Any required write outside the declared scope.",
+        "Any dependency not directly required by the accepted React, TypeScript, Vite, testing, and local persistence stack.",
+        "Any need for deployment, merge, paid provider access, or external service access."
+      ],
+      "stopConditions": [
+        "The accepted source documents conflict in a way that materially changes game behavior.",
+        "The implementation cannot be completed within the declared scope and authority.",
+        "A blocking Need remains unresolved."
+      ],
+      "budget": {
+        "maxRuntimeMinutes": 30,
+        "maxAutomaticIterations": 4
+      }
+    }
+  }
+}
