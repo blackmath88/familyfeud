@@ -32,7 +32,8 @@ export function Setup() {
     setError('');
     const listA = splitPlayers(playersA);
     const listB = splitPlayers(playersB);
-    const multiplierList = multipliers.split(',').map(Number).filter((value) => Number.isFinite(value) && value > 0);
+    const multiplierTokens = multipliers.split(',').map((value) => value.trim());
+    const multiplierList = multiplierTokens.map(Number);
     if (!teamA.trim() || !teamB.trim() || !listA.length || !listB.length || !selectedPacks.length) {
       setError('Bitte zwei Teams, Spielerinnen und Spieler sowie ein Paket angeben.');
       return;
@@ -41,11 +42,15 @@ export function Setup() {
       setError('Bitte zwischen 3 und 10 Runden wählen.');
       return;
     }
+    if (!multiplierTokens.length || multiplierTokens.some((token, index) => !token || !Number.isFinite(multiplierList[index]) || multiplierList[index] <= 0)) {
+      setError('Multiplikatoren müssen positive Zahlen sein, mit Kommas getrennt.');
+      return;
+    }
     setBusy(true);
     try {
       const config: GameConfig = {
         title: 'FAMILIEN-QUIZ', teams: [{ name: teamA.trim(), players: listA }, { name: teamB.trim(), players: listB }],
-        rounds, multipliers: multiplierList.length ? multiplierList : [1, 1, 3], packIds: selectedPacks,
+        rounds, multipliers: multiplierList, packIds: selectedPacks,
         allowRepeats, hostSeesAnswers, voice: { enabled: false, lang: 'de-DE', wakeWord: 'antwort' },
         llm: { enabled: false, autoAcceptAt: null },
       };

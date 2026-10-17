@@ -16,6 +16,10 @@ try {
   await host.getByRole('button', { name: 'Spiel starten' }).click();
   expect(await host.getByLabel('Runden').evaluate((input) => Reflect.get(Reflect.get(input, 'validity'), 'valid'))).toBe(false);
   await host.getByLabel('Runden').fill('3');
+  await host.getByLabel('Multiplikatoren').fill('1,foo,3');
+  await host.getByRole('button', { name: 'Spiel starten' }).click();
+  await expect(host.getByRole('alert')).toContainText('Multiplikatoren müssen positive Zahlen sein');
+  await host.getByLabel('Multiplikatoren').fill('1,1,3');
   await host.getByRole('checkbox', { name: 'Wiederholungen erlauben' }).check();
   await host.getByRole('button', { name: 'Spiel starten' }).click();
   await host.waitForURL('**/host');

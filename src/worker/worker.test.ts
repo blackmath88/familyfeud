@@ -83,6 +83,22 @@ describe('worker routing', () => {
     expect(mutations).toBe(0);
   });
 
+  it('writes a complete pack import in one atomic batch', async () => {
+    let batchCalls = 0;
+    let statementCount = 0;
+    const db = {
+      prepare: () => ({ bind: () => ({ first: async () => null }) }),
+      batch: async (statements: unknown[]) => { batchCalls += 1; statementCount = statements.length; },
+    };
+    const response = await app.request('/api/packs/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pack: { id: 'beispiel', name: 'Beispiel', source: 'manual' }, questions: [{ ...valid, id: 'new-question' }] }),
+    }, { DB: db } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(200);
+    expect(batchCalls).toBe(1);
+    expect(statementCount).toBe(6);
+  });
+
   it('rejects incomplete or mismatched game configurations before touching D1', async () => {
     for (const body of [{ config: {}, questionIds: ['1'] }, { config: validGame, questionIds: ['1', '2'] }]) {
       const response = await app.request('/api/games', {

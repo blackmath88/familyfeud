@@ -55,7 +55,7 @@ app.post('/api/questions', async (context) => {
   if (error) return context.json({ error }, 400);
   const question = input as QuestionInput;
   const id = question.id || nanoid();
-  await writeQuestion(context.env.DB, id, question, false);
+  await context.env.DB.batch(questionStatements(context.env.DB, id, question, false));
   return context.json({ ...question, id }, 201);
 });
 
@@ -67,7 +67,7 @@ app.put('/api/questions/:id', async (context) => {
   const id = context.req.param('id');
   const exists = await context.env.DB.prepare('SELECT id FROM questions WHERE id = ?').bind(id).first();
   if (!exists) return context.json({ error: 'Frage nicht gefunden.' }, 404);
-  await writeQuestion(context.env.DB, id, question, true);
+  await context.env.DB.batch(questionStatements(context.env.DB, id, question, true));
   return context.json({ ...question, id });
 });
 
@@ -105,12 +105,15 @@ app.post('/api/packs/import', async (context) => {
     }
     if (existing) existingQuestionIds.add(question.id);
   }
-  await context.env.DB.prepare('INSERT INTO packs (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, source = excluded.source')
-    .bind(file.pack.id, file.pack.name, file.pack.source).run();
+  const statements: D1PreparedStatement[] = [
+    context.env.DB.prepare('INSERT INTO packs (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, source = excluded.source')
+      .bind(file.pack.id, file.pack.name, file.pack.source),
+  ];
   for (const question of file.questions) {
     const id = question.id || nanoid();
-    await writeQuestion(context.env.DB, id, { ...question, packId: file.pack.id }, existingQuestionIds.has(id));
+    statements.push(...questionStatements(context.env.DB, id, { ...question, packId: file.pack.id }, existingQuestionIds.has(id)));
   }
+  await context.env.DB.batch(statements);
   return context.json({ ok: true, count: file.questions.length });
 });
 
@@ -254,7 +257,7 @@ function isSlug(value: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
-async function writeQuestion(db: D1Database, id: string, input: QuestionInput, update: boolean): Promise<void> {
+function questionStatements(db: D1Database, id: string, input: QuestionInput, update: boolean): D1PreparedStatement[] {
   const questionStatement = update
     ? db.prepare("UPDATE questions SET pack_id = ?, text = ?, survey_size = ?, difficulty = ?, status = ?, updated_at = datetime('now') WHERE id = ?").bind(input.packId, input.text, input.surveySize, input.difficulty, input.status, id)
     : db.prepare('INSERT INTO questions (id, pack_id, text, survey_size, difficulty, status) VALUES (?, ?, ?, ?, ?, ?)').bind(id, input.packId, input.text, input.surveySize, input.difficulty, input.status);
@@ -262,7 +265,7 @@ async function writeQuestion(db: D1Database, id: string, input: QuestionInput, u
   if (update) statements.push(db.prepare('DELETE FROM answers WHERE question_id = ?').bind(id));
   statements.push(...input.answers.map((answer) => db.prepare('INSERT INTO answers (question_id, rank, label, points, aliases) VALUES (?, ?, ?, ?, ?)')
     .bind(id, answer.rank, answer.label, answer.points, JSON.stringify(answer.aliases))));
-  await db.batch(statements);
+  return statements;
 }
 
 export default app;
