@@ -91,6 +91,11 @@ describe('game reducer', () => {
     expect(gameReducer(pending, { type: 'SET_FACEOFF_TURN', team: 1 })).toBe(pending);
   });
 
+  it('ignores a numeric shortcut for a rank that is not on the board', () => {
+    const state = run(start(), { type: 'NEXT' });
+    expect(gameReducer(state, { type: 'ACCEPT', rank: 8 })).toBe(state);
+  });
+
   it('rotates both face-off players after a rank-one win', () => {
     const state = run(start(), { type: 'NEXT' }, { type: 'ACCEPT', rank: 1 });
     expect(state).toMatchObject({ phase: 'playing', faceOffTurn: [1, 1], round: { control: 0 } });

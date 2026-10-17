@@ -90,16 +90,26 @@ app.post('/api/packs/import', async (context) => {
     return context.json({ error: 'Ungültiges Paket.' }, 400);
   }
   const file = input as unknown as PackFile;
+  const seenQuestionIds = new Set<string>();
+  const existingQuestionIds = new Set<string>();
   for (const question of file.questions) {
     const error = validateQuestion({ ...question, packId: file.pack.id });
     if (error) return context.json({ error }, 400);
+    if (!question.id) continue;
+    if (seenQuestionIds.has(question.id)) return context.json({ error: 'Doppelte Fragen-ID im Paket.' }, 400);
+    seenQuestionIds.add(question.id);
+    const existing = await context.env.DB.prepare('SELECT id, pack_id FROM questions WHERE id = ?').bind(question.id)
+      .first<{ id: string; pack_id: string }>();
+    if (existing?.pack_id && existing.pack_id !== file.pack.id) {
+      return context.json({ error: 'Die Fragen-ID gehört bereits zu einem anderen Paket.' }, 409);
+    }
+    if (existing) existingQuestionIds.add(question.id);
   }
   await context.env.DB.prepare('INSERT INTO packs (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, source = excluded.source')
     .bind(file.pack.id, file.pack.name, file.pack.source).run();
   for (const question of file.questions) {
     const id = question.id || nanoid();
-    const exists = await context.env.DB.prepare('SELECT id FROM questions WHERE id = ?').bind(id).first();
-    await writeQuestion(context.env.DB, id, { ...question, packId: file.pack.id }, Boolean(exists));
+    await writeQuestion(context.env.DB, id, { ...question, packId: file.pack.id }, existingQuestionIds.has(id));
   }
   return context.json({ ok: true, count: file.questions.length });
 });
@@ -116,6 +126,7 @@ app.post('/api/games', async (context) => {
     WHERE status = 'approved'
       AND pack_id IN (${body.config.packIds.map(() => '?').join(',')})
       AND id IN (${body.questionIds.map(() => '?').join(',')})
+      ${body.config.allowRepeats ? '' : 'AND times_played = 0'}
   `).bind(...body.config.packIds, ...body.questionIds).all<{ id: string }>();
   if (eligibleQuestions.results.length !== body.questionIds.length) {
     return context.json({ error: 'Mindestens eine Frage ist nicht spielbar.' }, 400);
@@ -126,7 +137,14 @@ app.post('/api/games', async (context) => {
     ...body.questionIds.map((questionId, index) => context.env.DB.prepare('INSERT INTO game_questions (game_id, round_index, question_id) VALUES (?, ?, ?)').bind(id, index, questionId)),
     ...body.questionIds.map((questionId) => context.env.DB.prepare("UPDATE questions SET times_played = times_played + 1, last_played_at = datetime('now') WHERE id = ?").bind(questionId)),
   ];
-  await context.env.DB.batch(statements);
+  try {
+    await context.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes('question_not_playable')) {
+      return context.json({ error: 'Mindestens eine Frage wurde bereits verwendet oder ist nicht spielbar.' }, 409);
+    }
+    throw error;
+  }
   return context.json({ id }, 201);
 });
 

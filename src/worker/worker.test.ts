@@ -64,6 +64,25 @@ describe('worker routing', () => {
     expect(badSlug.status).toBe(400);
   });
 
+  it('rejects an imported question ID owned by another pack before writing', async () => {
+    let mutations = 0;
+    const db = {
+      prepare: () => ({
+        bind: () => ({
+          first: async () => ({ id: 'shared', pack_id: 'other-pack' }),
+          run: async () => { mutations += 1; },
+        }),
+      }),
+      batch: async () => { mutations += 1; },
+    };
+    const response = await app.request('/api/packs/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pack: { id: 'beispiel', name: 'Beispiel', source: 'manual' }, questions: [{ ...valid, id: 'shared' }] }),
+    }, { DB: db } as unknown as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(409);
+    expect(mutations).toBe(0);
+  });
+
   it('rejects incomplete or mismatched game configurations before touching D1', async () => {
     for (const body of [{ config: {}, questionIds: ['1'] }, { config: validGame, questionIds: ['1', '2'] }]) {
       const response = await app.request('/api/games', {
@@ -75,10 +94,12 @@ describe('worker routing', () => {
 
   it('rejects game questions that are not approved members of a selected pack', async () => {
     let batchCalls = 0;
+    let eligibilitySql = '';
     const db = {
-      prepare: () => ({
-        bind: () => ({ all: async () => ({ results: [{ id: '1' }, { id: '2' }] }) }),
-      }),
+      prepare: (sql: string) => {
+        eligibilitySql = sql;
+        return { bind: () => ({ all: async () => ({ results: [{ id: '1' }, { id: '2' }] }) }) };
+      },
       batch: async () => { batchCalls += 1; },
     };
     const response = await app.request('/api/games', {
@@ -88,6 +109,7 @@ describe('worker routing', () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'Mindestens eine Frage ist nicht spielbar.' });
     expect(batchCalls).toBe(0);
+    expect(eligibilitySql).toContain('times_played = 0');
   });
 
   it.each(['/api/questions', '/api/packs/import', '/api/games'])('rejects a null body on %s without touching D1', async (path) => {

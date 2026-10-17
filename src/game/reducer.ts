@@ -113,7 +113,8 @@ function accept(state: GameState, rank: number): GameState {
   const team = activeTeam(state);
   if (!round || team === null || !['faceOff', 'playing', 'steal'].includes(state.phase)) return state;
   const index = round.slots.findIndex((slot) => slot.rank === rank);
-  if (index < 0 || round.slots[index].revealed !== null) {
+  if (index < 0) return state;
+  if (round.slots[index].revealed !== null) {
     return { ...state, pending: state.pending ? { ...state.pending, match: { ...state.pending.match, kind: 'duplicate', rank } } : state.pending, lastEvent: { seq: nextSeq(state), type: 'duplicate' } };
   }
   const slots = round.slots.map((slot, slotIndex) => slotIndex === index ? { ...slot, revealed: 'hit' as const, revealedBy: team } : slot);
