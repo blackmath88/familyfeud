@@ -85,7 +85,7 @@ app.get('/api/packs/:id/export', async (context) => {
 
 app.post('/api/packs/import', async (context) => {
   const input = await context.req.json<unknown>().catch(() => null);
-  if (!isRecord(input) || !isRecord(input.pack) || typeof input.pack.id !== 'string' || !input.pack.id || typeof input.pack.name !== 'string' || !input.pack.name
+  if (!isRecord(input) || !isRecord(input.pack) || typeof input.pack.id !== 'string' || !isSlug(input.pack.id) || typeof input.pack.name !== 'string' || !input.pack.name.trim()
     || typeof input.pack.source !== 'string' || !['manual', 'protoqa', 'survey'].includes(input.pack.source) || !Array.isArray(input.questions)) {
     return context.json({ error: 'Ungültiges Paket.' }, 400);
   }
@@ -106,8 +106,10 @@ app.post('/api/packs/import', async (context) => {
 
 app.post('/api/games', async (context) => {
   const input = await context.req.json<unknown>().catch(() => null);
-  if (!isRecord(input) || !isRecord(input.config) || !Array.isArray(input.questionIds) || input.questionIds.length < 1
-    || !input.questionIds.every((id) => typeof id === 'string' && id)) return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
+  if (!isRecord(input) || !isGameConfig(input.config) || !Array.isArray(input.questionIds) || input.questionIds.length !== input.config.rounds
+    || !input.questionIds.every((id) => typeof id === 'string' && id) || new Set(input.questionIds).size !== input.questionIds.length) {
+    return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
+  }
   const body = input as unknown as { config: GameConfig; questionIds: string[] };
   const id = nanoid();
   const statements = [
@@ -202,6 +204,27 @@ function isJudgeRequest(value: unknown): value is JudgeRequest {
   return isRecord(value) && typeof value.question === 'string' && typeof value.guess === 'string' && Array.isArray(value.answers)
     && value.answers.every((answer) => isRecord(answer) && Number.isInteger(answer.rank) && typeof answer.label === 'string'
       && Array.isArray(answer.aliases) && answer.aliases.every((alias) => typeof alias === 'string'));
+}
+
+function isGameConfig(value: unknown): value is GameConfig {
+  if (!isRecord(value) || typeof value.title !== 'string' || !value.title.trim() || !Array.isArray(value.teams) || value.teams.length !== 2
+    || !Number.isInteger(value.rounds) || Number(value.rounds) < 3 || Number(value.rounds) > 10
+    || !Array.isArray(value.multipliers) || !value.multipliers.length || !value.multipliers.every((item) => typeof item === 'number' && Number.isFinite(item) && item > 0)
+    || !Array.isArray(value.packIds) || !value.packIds.length || !value.packIds.every((id) => typeof id === 'string' && isSlug(id))
+    || typeof value.allowRepeats !== 'boolean' || typeof value.hostSeesAnswers !== 'boolean' || !isRecord(value.voice) || !isRecord(value.llm)) return false;
+  const teamsValid = value.teams.every((team) => isRecord(team) && typeof team.name === 'string' && Boolean(team.name.trim())
+    && Array.isArray(team.players) && team.players.length >= 1 && team.players.length <= 6
+    && team.players.every((player) => typeof player === 'string' && Boolean(player.trim())));
+  const voiceValid = typeof value.voice.enabled === 'boolean' && ['de-DE', 'de-CH'].includes(String(value.voice.lang))
+    && typeof value.voice.wakeWord === 'string' && Boolean(value.voice.wakeWord.trim());
+  const threshold = value.llm.autoAcceptAt;
+  const llmValid = typeof value.llm.enabled === 'boolean' && (threshold === null
+    || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1));
+  return teamsValid && voiceValid && llmValid;
+}
+
+function isSlug(value: string): boolean {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
 async function writeQuestion(db: D1Database, id: string, input: QuestionInput, update: boolean): Promise<void> {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { JudgeRequest, QuestionInput } from '../game/types';
+import type { GameConfig, JudgeRequest, QuestionInput } from '../game/types';
 import { judgeGuess } from './judge';
 import { app, validateQuestion } from './index';
 
@@ -11,6 +11,12 @@ const valid: QuestionInput = {
     { rank: 3, label: 'Drei', points: 20, aliases: ['dritte'] },
     { rank: 4, label: 'Vier', points: 10, aliases: ['vierte'] },
   ],
+};
+
+const validGame: GameConfig = {
+  title: 'FAMILIEN-QUIZ', teams: [{ name: 'A', players: ['Anna'] }, { name: 'B', players: ['Beat'] }],
+  rounds: 3, multipliers: [1, 1, 3], packIds: ['beispiel'], allowRepeats: false, hostSeesAnswers: false,
+  voice: { enabled: false, lang: 'de-CH', wakeWord: 'antwort' }, llm: { enabled: false, autoAcceptAt: null },
 };
 
 describe('worker validation', () => {
@@ -51,6 +57,20 @@ describe('worker routing', () => {
     }, {} as Parameters<typeof app.request>[2]);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: 'Ungültiges Paket.' });
+    const badSlug = await app.request('/api/packs/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pack: { id: 'bad,pack', name: 'Bad', source: 'manual' }, questions: [] }),
+    }, {} as Parameters<typeof app.request>[2]);
+    expect(badSlug.status).toBe(400);
+  });
+
+  it('rejects incomplete or mismatched game configurations before touching D1', async () => {
+    for (const body of [{ config: {}, questionIds: ['1'] }, { config: validGame, questionIds: ['1', '2'] }]) {
+      const response = await app.request('/api/games', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+      }, {} as Parameters<typeof app.request>[2]);
+      expect(response.status).toBe(400);
+    }
   });
 
   it.each(['/api/questions', '/api/packs/import', '/api/games'])('rejects a null body on %s without touching D1', async (path) => {
