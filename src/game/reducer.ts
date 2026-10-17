@@ -32,7 +32,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const next = reduceAction(state, action);
   if (next === state) return state;
   if (action.type === 'START_GAME') return next;
-  if (action.type === 'JUDGE_RESULT' || action.type === 'DISCARD') return next;
+  if (action.type === 'JUDGE_RESULT') return next;
+  if (action.type === 'DISCARD') return { ...next, history: state.history.slice(0, -1) };
   return { ...next, history: [...state.history, snapshot(state)].slice(-50) };
 }
 

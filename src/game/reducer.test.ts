@@ -104,6 +104,14 @@ describe('game reducer', () => {
     expect(undoneSnapshot).toEqual(beforeSnapshot);
   });
 
+  it('removes a discarded guess from undo history', () => {
+    const beforeGuess = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 }, { type: 'ACCEPT', rank: 1 });
+    const discarded = run(beforeGuess, { type: 'GUESS', text: 'Mondrakete' }, { type: 'DISCARD' });
+    const undone = gameReducer(discarded, { type: 'UNDO' });
+    expect(discarded.history).toHaveLength(beforeGuess.history.length);
+    expect(undone.round?.slots[0].revealed).toBeNull();
+  });
+
   it('starts a replacement game with an empty undo history', () => {
     const completedAction = run(start(), { type: 'NEXT' }, { type: 'SET_CONTROL', team: 0 });
     expect(completedAction.history.length).toBeGreaterThan(0);

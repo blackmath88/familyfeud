@@ -41,8 +41,8 @@ Board shows "RUNDE 2 · ×1" and the question typed out letter by letter. All sl
 - One player from each team (rotating each round) answers. Host marks who buzzed first (keys `A` / `B`)
   or simply lets team A go first.
 - First answer is matched. If it is the **#1 answer**, that team gets control immediately.
-- Otherwise the other face-off player answers too. Higher-ranked hit wins control. Neither hits → next pair
-  (host can also just assign control with `A`/`B`).
+- Otherwise the other face-off player answers too. Higher-ranked hit wins control. Neither hits → next pair.
+  The host can also assign control directly with the visible **Kontrolle A/B** buttons.
 - Face-off hits are revealed and count toward the round pot.
 
 ### playing
@@ -96,7 +96,7 @@ Host can always reveal a slot directly with `1`–`8`, add a strike with `X`, an
 | `X` | strike |
 | `J` / `N` | confirm / reject "Meinst du …?" |
 | `R` | discard guess, listen again |
-| `A` / `B` | give control to team A / B (face-off) |
+| `A` / `B` | select which team answers first in the face-off |
 | `Z` | undo last action |
 | `N` | next phase / next round |
 | `M` | mute/unmute mic |
