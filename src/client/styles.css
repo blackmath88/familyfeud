@@ -207,6 +207,7 @@ kbd { background: #252a41; border: 1px solid #505773; border-bottom-width: 3px; 
   .faceoff-pillars { bottom: 25%; gap: .35rem; }
   .faceoff-pillars > div { width: 25vw; }
   .floor-reflection { display: block; inset: 64% 0 0; }
+  .floor-reflection::before { display: none; }
   .answer-row { font-size: clamp(.72rem, 3.5vw, 1.1rem); }
   .question { font-size: clamp(.76rem, 3.6vw, 1.2rem); }
   .screen-status { font-size: .7rem; }
