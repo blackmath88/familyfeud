@@ -36,7 +36,7 @@ try {
   })()`);
   await board.goto(`${baseUrl}/board?intro=1`);
   await expect(board.locator('.board-stage')).toBeVisible();
-  await expect.poll(() => board.evaluate(() => location.search)).toBe('');
+  await expect.poll(() => board.evaluate(() => Reflect.get(globalThis, 'location').search)).toBe('');
   await expect(board.locator('body')).not.toContainText(hiddenLabel);
   const boardStorageReads = await board.evaluate<string[]>('window.__fqStorageReads');
   if (boardStorageReads.includes('fq:active-game')) throw new Error('Das Brett hat den autoritativen Spielstand aus dem Speicher geladen.');

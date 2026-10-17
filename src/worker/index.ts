@@ -50,7 +50,7 @@ app.get('/api/questions/:id', async (context) => {
 });
 
 app.post('/api/questions', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   const error = validateQuestion(input);
   if (error) return context.json({ error }, 400);
   const question = input as QuestionInput;
@@ -60,7 +60,7 @@ app.post('/api/questions', async (context) => {
 });
 
 app.put('/api/questions/:id', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   const error = validateQuestion(input);
   if (error) return context.json({ error }, 400);
   const question = input as QuestionInput;
@@ -84,7 +84,7 @@ app.get('/api/packs/:id/export', async (context) => {
 });
 
 app.post('/api/packs/import', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   if (!isRecord(input) || !isRecord(input.pack) || typeof input.pack.id !== 'string' || !input.pack.id || typeof input.pack.name !== 'string' || !input.pack.name
     || typeof input.pack.source !== 'string' || !['manual', 'protoqa', 'survey'].includes(input.pack.source) || !Array.isArray(input.questions)) {
     return context.json({ error: 'Ungültiges Paket.' }, 400);
@@ -105,7 +105,7 @@ app.post('/api/packs/import', async (context) => {
 });
 
 app.post('/api/games', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   if (!isRecord(input) || !isRecord(input.config) || !Array.isArray(input.questionIds) || input.questionIds.length < 1
     || !input.questionIds.every((id) => typeof id === 'string' && id)) return context.json({ error: 'Spielkonfiguration unvollständig.' }, 400);
   const body = input as unknown as { config: GameConfig; questionIds: string[] };
@@ -120,16 +120,16 @@ app.post('/api/games', async (context) => {
 });
 
 app.put('/api/games/:id', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   if (!isRecord(input) || !isRecord(input.state)) return context.json({ error: 'Spielstand unvollständig.' }, 400);
   const { state } = input;
-  await context.env.DB.prepare("UPDATE games SET state = ?, finished_at = CASE WHEN json_extract(?, '$.phase') = 'gameOver' THEN datetime('now') ELSE finished_at END WHERE id = ?")
+  await context.env.DB.prepare("UPDATE games SET state = ?, finished_at = CASE WHEN json_extract(?, '$.phase') = 'gameOver' THEN datetime('now') ELSE NULL END WHERE id = ?")
     .bind(JSON.stringify(state), JSON.stringify(state), context.req.param('id')).run();
   return context.json({ ok: true });
 });
 
 app.post('/api/judge', async (context) => {
-  const input = await context.req.json<unknown>();
+  const input = await context.req.json<unknown>().catch(() => null);
   if (!isJudgeRequest(input)) return context.json({ error: 'Prüfanfrage unvollständig.' }, 400);
   return context.json(await judgeGuess(input, context.env));
 });

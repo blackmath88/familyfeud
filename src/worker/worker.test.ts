@@ -73,6 +73,13 @@ describe('worker routing', () => {
     }, {} as Parameters<typeof app.request>[2]);
     expect(response.status).toBe(400);
   });
+
+  it('returns a client error for malformed JSON', async () => {
+    const response = await app.request('/api/questions', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{',
+    }, {} as Parameters<typeof app.request>[2]);
+    expect(response.status).toBe(400);
+  });
 });
 
 describe('judge fallback', () => {
